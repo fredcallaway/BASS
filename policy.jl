@@ -11,13 +11,20 @@ end
 
 stop(pol::DirectedCognition, s::State, t::Trial) = voc_dc(pol.m, s, t.confidence) < 0
 
+"Directed cognition approximation to the Value of Computation.
+
+It does a limited kind of look-ahead by considering different amounts of
+additional sampling that it could commit to. It estimates the VOC for taking
+one additional sample to be max_N VOC(take N samples). This is a lower bound
+on the true VOC because you don't actually have to commit in advance.
+"
 function voc_dc(m, s, confidence)
-    res = optimize(1, 100, abs_tol=m.sample_cost) do n
+    # note that we treat the number of samples as a continuous variable here
+    res = optimize(1, 100, abs_tol=m.cost) do n
         -voc_n(m, s, n, confidence)
     end
     -res.minimum
 end
-
 
 "Standard deviation of the posterior mean"
 function std_of_posterior_mean(λ, λ_obs)
@@ -48,7 +55,7 @@ function voi_n(m::BDDM, s::State, n, confidence)
     expected_max_norm(s.μ, λ_μ) - maximum(s.μ)
 end
 
-voc_n(m::BDDM, s::State, n, confidence) = voi_n(m, s, n, confidence) - m.sample_cost * n
+voc_n(m::BDDM, s::State, n, confidence) = voi_n(m, s, n, confidence) - m.cost * n
 
 
 "Value of perfect information about all items"

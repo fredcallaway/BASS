@@ -8,13 +8,13 @@ struct BDDM
     N::Int
     base_precision::Float64
     attention_factor::Float64
-    sample_cost::Float64
+    cost::Float64
     risk_aversion::Float64
     tmp::Vector{Float64}  # this is for memory-efficiency
 end
 
-function BDDM(;N=2, base_precision=.1, attention_factor=.1, sample_cost=1e-3, risk_aversion=0.)
-    BDDM(N, base_precision, attention_factor, sample_cost, risk_aversion, zeros(N))
+function BDDM(;N=2, base_precision=.05, attention_factor=.1, cost=1e-3, risk_aversion=0.)
+    BDDM(N, base_precision, attention_factor, cost, risk_aversion, zeros(N))
 end
 
 "The state of the BDDM."
@@ -33,6 +33,7 @@ struct Trial
     presentation_times::Vector{Int}
 end
 Trial(n) = Trial(randn(n), 0.1 * ones(n) + 0.9 * rand(n), [1, 1])
+Trial(m::BDDM) = Trial(m.N)
 
 include("policy.jl")
 
@@ -65,10 +66,9 @@ function update!(m::BDDM, s::State, t::Trial, attended_item)
     end
 end
 
-
 # ---------- Simulation ---------- #
 
-function simulate(m::BDDM, pol::Policy; t=Trial(m.N), s=State(m), max_rt=1000)
+function simulate(m::BDDM, pol::Policy; t=Trial(m), s=State(m), max_rt=1000)
     items = Iterators.Stateful(Iterators.cycle(1:m.N))
     ptimes = Iterators.Stateful(Iterators.cycle(t.presentation_times))
     attended_item = first(items)
@@ -86,14 +86,6 @@ function simulate(m::BDDM, pol::Policy; t=Trial(m.N), s=State(m), max_rt=1000)
     end
     value, choice = findmax(s.μ)
     σ = s.λ[choice] ^ -0.5
-    reward = value - rt * m.sample_cost - σ * m.risk_aversion 
+    reward = value - rt * m.cost - σ * m.risk_aversion 
     (choice=choice, rt=rt, reward=reward, final_state=s)
-end
-
-function choice_rt(true_values, confidence, presentation_times; n_sim=10000, kws...)
-    choice, rt = n_sim \ mapreduce(+, 1:n_sim) do i
-        choice, rt, μs, λs = simulate(true_values, confidence, presentation_times; kws...)
-        [choice - 1, rt]
-    end
-    (choice=choice, rt=rt)
 end
