@@ -1,4 +1,21 @@
 using StatsFuns: normcdf, normpdf
+using Parameters
+
+# ---------- Basics ---------- #
+
+"Bayesian Drift Diffusion Model"
+struct BDDM
+    N::Int
+    base_precision::Float64
+    attention_factor::Float64
+    sample_cost::Float64
+    risk_aversion::Float64
+    tmp::Vector{Float64}  # this is for memory-efficiency
+end
+
+function BDDM(;N=2, base_precision=.1, attention_factor=.1, sample_cost=1e-3, risk_aversion=0.)
+    BDDM(N, base_precision, attention_factor, sample_cost, risk_aversion, zeros(N))
+end
 
 "The state of the BDDM."
 struct State
@@ -6,6 +23,20 @@ struct State
     λ::Vector{Float64}
 end
 State(n::Int) = State(zeros(n), ones(n))
+State(m::BDDM) = State(m.N)
+Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
+
+"A single choice trial"
+struct Trial
+    value::Vector{Float64}
+    confidence::Vector{Float64}
+    presentation_times::Vector{Int}
+end
+Trial(n) = Trial(randn(n), 0.1 * ones(n) + 0.9 * rand(n), [1, 1])
+
+include("policy.jl")
+
+# ---------- Updating ---------- #
 
 "Returns updated mean and precision given a prior and observation."
 function bayes_update_normal(μ, λ, obs, λ_obs)
@@ -14,79 +45,54 @@ function bayes_update_normal(μ, λ, obs, λ_obs)
     (μ1, λ1)
 end
 
+"Precision of samples given the rating confidence and attention"
+function observation_precision(m::BDDM, confidence, attended_item)
+    λ = m.tmp
+    for i in eachindex(confidence)
+        weight = i == attended_item ? 1. : m.attention_factor
+        λ[i] = m.base_precision * confidence[i] * weight
+    end
+    λ
+end
+
 "Take one step of the BDDM, moving towards the true values"
-function update!(s::State, true_values, λ_obs)
-    for i in eachindex(true_values)
+function update!(m::BDDM, s::State, t::Trial, attended_item)
+    λ_obs = observation_precision(m, t.confidence, attended_item)
+    for i in eachindex(t.value)
         σ_obs = λ_obs[i] ^ -0.5
-        obs = true_values[i] + σ_obs * randn()
+        obs = t.value[i] + σ_obs * randn()
         s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
     end
 end
 
-function observation_precision(certainty, attended_item; base_λ=.1, attention_factor=0.01)
-    attention = ones(length(certainty)) .* (base_λ * attention_factor)
-    attention[attended_item] = base_λ
-    certainty .* attention
-end
 
-"Expected maximum of Normals with means μ and precisions λ"
-function expected_max_norm(μ, λ)
-    Φ = normcdf  # isn't unicode just so much fun!
-    ϕ = normpdf
-    if length(μ) == 2
-        μ1, μ2 = μ
-        σ1, σ2 = λ .^ -0.5
-        θ = √(σ1^2 + σ2^2)
-        return μ1 * Φ((μ1 - μ2) / θ) + μ2 * Φ((μ2 - μ1) / θ) + θ * ϕ((μ1 - μ2) / θ)
-    end
+# ---------- Simulation ---------- #
 
-    dists = Normal.(μ, λ.^-0.5)
-    mcdf(x) = mapreduce(*, dists) do d
-        cdf(d, x)
-    end
-
-    - quadgk(mcdf, -10, 0, atol=1e-5)[1] + quadgk(x->1-mcdf(x), 0, 10, atol=1e-5)[1]
-end
-
-"Value of perfect information about all items"
-function vpi(s)
-    expected_max_norm(s.μ, s.λ) - maximum(s.μ)
-end
-
-function stopping(s::State)
-    choice = argmax(s.μ)
-    risk = s.λ[choice]^-1/2
-    return vpi(s) + risk
-end
-
-function simulate(true_values, certainty, presentation_times; max_t=1000, threshold=.1)
-    N = length(true_values)
-    items = Iterators.Stateful(Iterators.cycle(1:N))
-    ptimes = Iterators.Stateful(Iterators.cycle(presentation_times))
+function simulate(m::BDDM, pol::Policy; t=Trial(m.N), s=State(m), max_rt=1000)
+    items = Iterators.Stateful(Iterators.cycle(1:m.N))
+    ptimes = Iterators.Stateful(Iterators.cycle(t.presentation_times))
     attended_item = first(items)
     time_to_switch = first(ptimes)
-    s = State(N)
-    μs = [copy(s.μ)]
-    λs = [copy(s.λ)]
-    for t in 1:max_t
+    rt = 0
+    while rt < max_rt
+        rt += 1
         if time_to_switch == 0
             attended_item = popfirst!(items)
             time_to_switch = popfirst!(ptimes)
-            # @show attended_item time_to_switch
         end
-        λ_obs = observation_precision(certainty, attended_item)
-        update!(s, true_values, λ_obs)
-        push!(μs, copy(s.μ))
-        push!(λs, copy(s.λ))
+        update!(m, s, t, attended_item)
         time_to_switch -= 1
-        stopping(s) < threshold && break
+        stop(pol, s, t) && break
     end
-    argmax(s.μ), length(μs), μs, λs
+    value, choice = findmax(s.μ)
+    σ = s.λ[choice] ^ -0.5
+    reward = value - rt * m.sample_cost - σ * m.risk_aversion 
+    (choice=choice, rt=rt, reward=reward, final_state=s)
 end
 
-function choice_rt(true_values, certainty, presentation_times; n_sim=10000, kws...)
+function choice_rt(true_values, confidence, presentation_times; n_sim=10000, kws...)
     choice, rt = n_sim \ mapreduce(+, 1:n_sim) do i
-        choice, rt, μs, λs = simulate(true_values, certainty, presentation_times; kws...)
+        choice, rt, μs, λs = simulate(true_values, confidence, presentation_times; kws...)
         [choice - 1, rt]
     end
     (choice=choice, rt=rt)
