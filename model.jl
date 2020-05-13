@@ -66,6 +66,11 @@ function update!(m::BDDM, s::State, t::Trial, attended_item)
     end
 end
 
+function term_reward(m::BDDM, s::State)
+    value, choice = findmax(s.μ)
+    value - m.risk_aversion * s.λ[choice] ^ -0.5
+end
+
 # ---------- Simulation ---------- #
 
 function simulate(m::BDDM, pol::Policy; t=Trial(m), s=State(m), max_rt=1000)
@@ -86,6 +91,6 @@ function simulate(m::BDDM, pol::Policy; t=Trial(m), s=State(m), max_rt=1000)
     end
     value, choice = findmax(s.μ)
     σ = s.λ[choice] ^ -0.5
-    reward = value - rt * m.cost - σ * m.risk_aversion 
+    reward = term_reward(m, s) - rt * m.cost
     (choice=choice, rt=rt, reward=reward, final_state=s)
 end

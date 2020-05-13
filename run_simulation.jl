@@ -1,7 +1,7 @@
 @everywhere include("model.jl")
 
 @everywhere function choice_rt(t::Trial; n_sim=5000, kws...)
-    m = BDDM(base_precision=.01, cost=5e-4)
+    m = BDDM(base_precision=.01, cost=5e-4, risk_aversion=.1)
     pol = DirectedCognition(m)
     choice, rt = n_sim \ mapreduce(+, 1:n_sim) do i
         sim = simulate(m, pol; t=t)

@@ -41,8 +41,37 @@ function expected_max_norm(μ, λ)
     μ1, μ2 = μ
     σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
     θ = √(σ1^2 + σ2^2)
-    return μ1 * Φ((μ1 - μ2) / θ) + μ2 * Φ((μ2 - μ1) / θ) + θ * ϕ((μ1 - μ2) / θ)
+    p1 = Φ((μ1 - μ2) / θ)  # p(X1 > X2)
+    p2 = 1 - p1
+    return μ1 * p1 + μ2 * p2 + θ * ϕ((μ1 - μ2) / θ)
 end
+
+"Expected maximum plus risk aversion"
+function expected_term_reward(μ, λ, risk_aversion, λ_future)
+    Φ = normcdf  # isn't unicode just so much fun!
+    ϕ = normpdf
+    μ1, μ2 = μ
+    σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
+    θ = √(σ1^2 + σ2^2)
+    p1 = Φ((μ1 - μ2) / θ)  # p(X1 > X2)
+    p2 = 1 - p1
+    emax = μ1 * p1 + μ2 * p2 + θ * ϕ((μ1 - μ2) / θ)
+    erisk = p1 * λ_future[1]^-0.5 + p2 * λ_future[2]^-0.5
+    emax - risk_aversion * erisk
+end
+
+
+# "Value of information from n more samples (assuming equal attention)"
+# function voi_n(m::BDDM, s::State, n, confidence)
+#     λ_avg = n * (m.base_precision + m.base_precision * m.attention_factor) / 2
+#     λ_μ = m.tmp
+#     for i in eachindex(s.λ)
+#         λ_μ[i] = std_of_posterior_mean(s.λ[i], λ_avg * confidence[i]) ^ -2
+#     end
+#     # σ_μ ≈ 0. && return 0.  # avoid error initializing Normal
+#     expected_max_norm(s.μ, λ_μ) - maximum(s.μ)
+# end
+
 
 "Value of information from n more samples (assuming equal attention)"
 function voi_n(m::BDDM, s::State, n, confidence)
@@ -51,8 +80,9 @@ function voi_n(m::BDDM, s::State, n, confidence)
     for i in eachindex(s.λ)
         λ_μ[i] = std_of_posterior_mean(s.λ[i], λ_avg * confidence[i]) ^ -2
     end
+    λ_future = s.λ .+ λ_avg .* confidence
     # σ_μ ≈ 0. && return 0.  # avoid error initializing Normal
-    expected_max_norm(s.μ, λ_μ) - maximum(s.μ)
+    expected_term_reward(s.μ, λ_μ, m.risk_aversion, λ_future) - term_reward(m, s)
 end
 
 voc_n(m::BDDM, s::State, n, confidence) = voi_n(m, s, n, confidence) - m.cost * n
