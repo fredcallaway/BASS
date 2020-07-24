@@ -1,6 +1,7 @@
 using StatsFuns: normcdf, normpdf
 using Parameters
-
+using Distributions
+using Random
 # ---------- Basics ---------- #
 
 "Bayesian Drift Diffusion Model"
@@ -30,12 +31,14 @@ Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
 struct Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
-    presentation_times::Vector{Int}
+    presentation_times::Vector{Distribution}
 end
-Trial(n) = Trial(randn(n), 0.1 * ones(n) + 0.9 * rand(n), [1, 1])
-Trial(m::BDDM) = Trial(m.N)
 
-include("policy.jl")
+function Trial()
+    ptimes = [Normal(10, 2), Normal(30, 6)]
+    shuffle!(ptimes)
+    Trial(randn(2), 0.1 * ones(2) + 0.9 * rand(2), ptimes)
+end
 
 # ---------- Updating ---------- #
 
@@ -46,30 +49,22 @@ function bayes_update_normal(μ, λ, obs, λ_obs)
     (μ1, λ1)
 end
 
-"Precision for each item given the rating confidence and attention."
-function observation_precision(m::BDDM, confidence::Vector{Float64}, attended_item::Int)
-    λ = m.tmp  # use pre-allocated array for efficiency
-    for i in eachindex(λ)
-        weight = i == attended_item ? 1. : m.attention_factor
-        λ[i] = m.base_precision * confidence[i] * weight
-    end
-    λ
-end
-
 "Take one step of the BDDM.
 
 Draws samples of each item, centered on their true values with precision based
 on confidence and attention. Integrates these samples into the current belief
 State by Bayesian inference.
 "
-function update!(m::BDDM, s::State, t::Trial, attended_item::Int)
-    λ_obs = observation_precision(m, t.confidence, attended_item)
-    for i in eachindex(t.value)
+function update!(m::BDDM, s::State, true_value::Vector, λ_obs::Vector)
+    for i in eachindex(λ_obs)
+        λ_obs[i] == 0 && continue  # no update
         σ_obs = λ_obs[i] ^ -0.5
-        obs = t.value[i] + σ_obs * randn()
+        obs = true_value[i] + σ_obs * randn()
         s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
     end
 end
+
+# ---------- Choice and value ---------- #
 
 "Reward attained when terminating sampling.
 
@@ -86,25 +81,66 @@ function subjective_values(m::BDDM, s::State)
     @. v = s.μ - m.risk_aversion * s.λ ^ -0.5
 end
 
+# ---------- Attention ---------- #
+
+"Precision for each item given the rating confidence and attention."
+function observation_precision(m::BDDM, confidence::Vector, attended_item::Int)
+    λ = m.tmp  # use pre-allocated array for efficiency
+    for i in eachindex(λ)
+        weight = i == attended_item ? 1. : m.attention_factor
+        λ[i] = m.base_precision * confidence[i] * weight
+    end
+    λ
+end
+
+function make_switches(presentation_times)
+    switching = presentation_times |> enumerate |> Iterators.cycle |> Iterators.Stateful
+    function switch()
+        i, d = first(switching)
+        t = max(1, round(Int, rand(d)))
+        i, t
+    end
+end
+
+# ---------- Stopping policy ---------- #
+
+"A Policy decides when to stop sampling."
+abstract type Policy end
+
+"A Policy endorsed by Young Gunz."
+struct CantStopWontStop <: Policy end
+stop(pol::CantStopWontStop, s::State, t::Trial) = false
+
 # ---------- Simulation ---------- #
+
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, pol::Policy; t=Trial(m), s=State(m), max_rt=1000)
-    items = Iterators.Stateful(Iterators.cycle(1:m.N))
-    ptimes = Iterators.Stateful(Iterators.cycle(t.presentation_times))
-    attended_item = first(items)
-    time_to_switch = first(ptimes)
+function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save_states=false)
+    switch = make_switches(t.presentation_times)
+    attended_item, time_to_switch = switch()
+    first_fix = true
     rt = 0
+    states = []
     while rt < max_rt
+        save_states && push!(states, copy(s))
         rt += 1
         if time_to_switch == 0
-            attended_item = popfirst!(items)
-            time_to_switch = popfirst!(ptimes)
+            attended_item, time_to_switch = switch()
+            first_fix = false
         end
-        update!(m, s, t, attended_item)
+        λ_obs = observation_precision(m, t.confidence, attended_item)
+        if first_fix
+            for i in eachindex(λ_obs)
+                if i != attended_item
+                    λ_obs[i] = 0
+                end
+            end
+        end
+        update!(m, s, t.value, λ_obs)
         time_to_switch -= 1
         stop(pol, s, t) && break
     end
     value, choice = findmax(subjective_values(m, s))
     reward = value - rt * m.cost
-    (choice=choice, rt=rt, reward=reward, final_state=s)
+    push!(states, s)
+    (choice=choice, rt=rt, reward=reward, states=states)
 end
