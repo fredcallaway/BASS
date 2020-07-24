@@ -23,7 +23,7 @@ struct State
     μ::Vector{Float64}
     λ::Vector{Float64}
 end
-State(n::Int) = State(zeros(n), ones(n))
+State(n=2::Int) = State(zeros(n), ones(n))
 State(m::BDDM) = State(m.N)
 Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
 
