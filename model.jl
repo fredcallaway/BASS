@@ -1,5 +1,3 @@
-using StatsFuns: normcdf, normpdf
-using Parameters
 using Distributions
 using Random
 # ---------- Basics ---------- #
@@ -120,6 +118,7 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
     first_fix = true
     rt = 0
     states = []
+    presentation_times = zeros(Int, length(t.value))
     while rt < max_rt
         save_states && push!(states, copy(s))
         rt += 1
@@ -136,11 +135,29 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
             end
         end
         update!(m, s, t.value, λ_obs)
+        presentation_times[attended_item] += 1
         time_to_switch -= 1
         stop(pol, s, t) && break
     end
     value, choice = findmax(subjective_values(m, s))
     reward = value - rt * m.cost
     push!(states, s)
-    (choice=choice, rt=rt, reward=reward, states=states)
+    (choice=choice, rt=rt, reward=reward, states=states, presentation_times=presentation_times)
 end
+
+
+# ---------- Miscellaneous ---------- #
+
+namedtuple(t::Trial) = (
+    val1 = t.value[1],
+    val2 = t.value[2],
+    conf1 = t.confidence[1],
+    conf2 = t.confidence[2],
+)
+
+namedtuple(m::BDDM) = (
+    base_precision = m.base_precision,
+    attention_factor = m.attention_factor,
+    cost = m.cost,
+    risk_aversion = m.risk_aversion,
+)
