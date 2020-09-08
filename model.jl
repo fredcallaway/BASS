@@ -3,27 +3,26 @@ using Random
 # ---------- Basics ---------- #
 
 "Bayesian Drift Diffusion Model"
-struct BDDM
-    N::Int   # num items
-    base_precision::Float64  # precision of sample of attended item with confidence=1
-    attention_factor::Float64  # < down-weighting of precision for unattended item (less than 1)
-    cost::Float64  # cost per sample
-    risk_aversion::Float64  # scales penalty for variance of chosen item
-    over_confidence::Float64  # multiplier for perceived sample variance
-    tmp::Vector{Float64}  # implementation detail, for memory-efficiency
+@with_kw struct BDDM
+    N::Int = 2                      # number of items
+    base_precision::Float64 = .05   # precision of sample of attended item with confidence=1
+    attention_factor::Float64 = .1  # down-weighting of precision for unattended item (less than 1)
+    cost::Float64 = 1e-3            # cost per sample
+    risk_aversion::Float64 = 0.     # scales penalty for variance of chosen item
+    over_confidence_slope::Float64 = 1.   # treat observations as though they were more or less noisy 
+    over_confidence_intercept::Float64 = 0.   # treat observations as though they were more or less noisy 
+    prior_mean::Float64 = 0.
+    prior_precision::Float64 = 1.
+    tmp::Vector{Float64} = zeros(N) # implementation detail, for memory-efficiency
 end
 
-function BDDM(;N=2, base_precision=.05, attention_factor=.1, cost=1e-3, risk_aversion=0., over_confidence=0)
-    BDDM(N, base_precision, attention_factor, cost, risk_aversion, over_confidence, zeros(N))
-end
 
 "The state of the BDDM."
 struct State
     μ::Vector{Float64}
     λ::Vector{Float64}
 end
-State(n=2::Int) = State(zeros(n), ones(n))
-State(m::BDDM) = State(m.N)
+State(m::BDDM) = State(fill(m.prior_mean, m.N), fill(m.prior_precision, m.N))
 Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
 
 "A single choice trial"
@@ -31,12 +30,6 @@ struct Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
     presentation_times::Vector{Distribution}
-end
-
-function Trial()
-    ptimes = [Normal(10, 2), Normal(30, 6)]
-    shuffle!(ptimes)
-    Trial(randn(2), 0.1 * ones(2) + 0.9 * rand(2), ptimes)
 end
 
 # ---------- Updating ---------- #
@@ -57,7 +50,9 @@ State by Bayesian inference.
 function update!(m::BDDM, s::State, true_value::Vector, λ_obs::Vector)
     for i in eachindex(λ_obs)
         λ_obs[i] == 0 && continue  # no update
-        σ_obs = λ_obs[i] ^ -0.5 * m.over_confidence
+        # σ_obs = λ_obs[i] ^ -0.5
+        # λ_obs[i] = λ_obs[i] * m.over_confidence_slope + m.over_confidence_intercept
+        σ_obs = λ_obs[i] ^ -0.5 * m.over_confidence_slope
         obs = true_value[i] + σ_obs * randn()
         s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
     end
@@ -161,5 +156,7 @@ namedtuple(m::BDDM) = (
     attention_factor = m.attention_factor,
     cost = m.cost,
     risk_aversion = m.risk_aversion,
-    over_confidence = m.over_confidence,
+    over_confidence_slope = m.over_confidence_slope,
+    over_confidence_intercept = m.over_confidence_intercept,
+    prior_mean = m.prior_mean
 )
