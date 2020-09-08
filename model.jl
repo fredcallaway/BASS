@@ -9,11 +9,12 @@ struct BDDM
     attention_factor::Float64  # < down-weighting of precision for unattended item (less than 1)
     cost::Float64  # cost per sample
     risk_aversion::Float64  # scales penalty for variance of chosen item
+    over_confidence::Float64  # multiplier for perceived sample variance
     tmp::Vector{Float64}  # implementation detail, for memory-efficiency
 end
 
-function BDDM(;N=2, base_precision=.05, attention_factor=.1, cost=1e-3, risk_aversion=0.)
-    BDDM(N, base_precision, attention_factor, cost, risk_aversion, zeros(N))
+function BDDM(;N=2, base_precision=.05, attention_factor=.1, cost=1e-3, risk_aversion=0., over_confidence=0)
+    BDDM(N, base_precision, attention_factor, cost, risk_aversion, over_confidence, zeros(N))
 end
 
 "The state of the BDDM."
@@ -56,7 +57,7 @@ State by Bayesian inference.
 function update!(m::BDDM, s::State, true_value::Vector, λ_obs::Vector)
     for i in eachindex(λ_obs)
         λ_obs[i] == 0 && continue  # no update
-        σ_obs = λ_obs[i] ^ -0.5
+        σ_obs = λ_obs[i] ^ -0.5 * m.over_confidence
         obs = true_value[i] + σ_obs * randn()
         s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
     end
@@ -160,4 +161,5 @@ namedtuple(m::BDDM) = (
     attention_factor = m.attention_factor,
     cost = m.cost,
     risk_aversion = m.risk_aversion,
+    over_confidence = m.over_confidence,
 )
