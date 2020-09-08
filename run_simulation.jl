@@ -26,14 +26,22 @@ function run_sims(bddms::Vector{BDDM}, N::Int)
     end
 end
 
+function run_many(name args)
+    bddms = map_product(BDDM; args...)[:]
+    df = DataFrame(run_sims(bddms, Int(1e5)))
+    d = df[!, 4:end-1]
+    d[!, 1:4] = round.(d[!, 1:4]; digits=4)
+    CSV.write("results/$name.csv", d)
+    println("Wrote $(size(d, 1)) rows to results/$name.csv")
+    d
+end
+
+# %% --------
+
 args = Dict(
     :cost => [4e-4],
     :risk_aversion => [0., 16e-3, 64e-3],
     :over_confidence => [1.1, 1.5, 2, 4],
 )
 
-bddms = map_product(BDDM; args...)[:]
-df = DataFrame(run_sims(bddms, Int(1e5)))
-d = df[!, 4:end-1]
-d[!, 1:4] = round.(d[!, 1:4]; digits=4)
-d |> CSV.write("results/jul24-D.csv")
+run_many("results/sep8-replicate-jul24-D.csv", args)
