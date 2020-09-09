@@ -4,6 +4,7 @@ using DataFrames
 using ProgressMeter
 using Random
 
+
 @everywhere begin
     include("model.jl")
     include("dc.jl")
@@ -26,14 +27,25 @@ function run_sims(bddms::Vector{BDDM}, N::Int)
     end
 end
 
-function run_many(name args)
+function run_many(name, args; skip_cols=[], force=false)
+    file = "results/$name.csv"
+    if isfile(file) && !force
+        error("$file already exists.")
+    end
+    println("Creating $file")
+
     bddms = map_product(BDDM; args...)[:]
     df = DataFrame(run_sims(bddms, Int(1e5)))
-    d = df[!, 4:end-1]
-    d[!, 1:4] = round.(d[!, 1:4]; digits=4)
-    CSV.write("results/$name.csv", d)
-    println("Wrote $(size(d, 1)) rows to results/$name.csv")
-    d
+    
+    drop = setdiff(fieldnames(BDDM), setdiff(keys(args), skip_cols))
+    select!(df, Not(intersect(propertynames(df), drop)))
+
+    x = Between(:val1, :conf2)
+    df[!, x] = round.(df[!, x]; sigdigits=4)
+
+    CSV.write(file, df)
+    println("Wrote $(size(df, 1)) rows to $file")
+    df
 end
 
 # %% --------
@@ -41,7 +53,24 @@ end
 args = Dict(
     :cost => [4e-4],
     :risk_aversion => [0., 16e-3, 64e-3],
-    :over_confidence => [1.1, 1.5, 2, 4],
+    :over_confidence_slope => [1.1, 1.5, 2],
 )
+run_many("sep9-basic.csv", args; skip_cols=[:cost])
 
-run_many("results/sep8-replicate-jul24-D.csv", args)
+
+args = Dict(
+    :cost => [4e-4],
+    :risk_aversion => [0., 16e-3, 64e-3],
+    :over_confidence_slope => [1.1, 1.5, 2],
+    :prior_mean => -1.7
+)
+run_many("sep9-stupid_prior.csv", args; skip_cols=[:cost])
+
+
+args = Dict(
+    :cost => [4e-4],
+    :risk_aversion => [0., 16e-3, 64e-3],
+    :over_confidence_slope => [0],
+    :over_confidence_intercept => collect(range(0.5, 2.5, length=5))[2:end-1],
+)
+run_many("sep9-stupid_confidence.csv", args; skip_cols=[:cost])

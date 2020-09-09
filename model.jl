@@ -1,5 +1,6 @@
 using Distributions
 using Random
+using Parameters
 # ---------- Basics ---------- #
 
 "Bayesian Drift Diffusion Model"
@@ -50,10 +51,9 @@ State by Bayesian inference.
 function update!(m::BDDM, s::State, true_value::Vector, λ_obs::Vector)
     for i in eachindex(λ_obs)
         λ_obs[i] == 0 && continue  # no update
-        # σ_obs = λ_obs[i] ^ -0.5
-        # λ_obs[i] = λ_obs[i] * m.over_confidence_slope + m.over_confidence_intercept
-        σ_obs = λ_obs[i] ^ -0.5 * m.over_confidence_slope
+        σ_obs = λ_obs[i] ^ -0.5
         obs = true_value[i] + σ_obs * randn()
+        λ_obs[i] = λ_obs[i] * m.over_confidence_slope + m.over_confidence_intercept
         s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
     end
 end
@@ -158,5 +158,6 @@ namedtuple(m::BDDM) = (
     risk_aversion = m.risk_aversion,
     over_confidence_slope = m.over_confidence_slope,
     over_confidence_intercept = m.over_confidence_intercept,
-    prior_mean = m.prior_mean
+    prior_mean = m.prior_mean,
+    prior_precision = m.prior_precision
 )
