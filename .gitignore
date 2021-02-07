@@ -1,7 +1,6 @@
 .Rhistory
 .ipynb_checkpoints/
 Manifest.toml
-bench.jl
 oldfigs/
 profile.ipynb
 fighist/

@@ -9,45 +9,48 @@ for taking one additional sample to be max_N VOC(take N samples). This is a
 lower bound on the true VOC because you don't actually have to commit in
 advance.
 "
-struct DirectedCognition2 <: Policy
+
+struct DirectedCognition <: Policy
     m::BDDM
     λ_avg::Vector{Float64}
+    noise::Logistic
 end
 
+# DirectedCognition(m::BDDM) = DirectedCognition(m, zeros(m.N), DiracDelta(0.))
+DirectedCognition(m::BDDM, β=1e10) = DirectedCognition(m, zeros(m.N), Logistic(0., 1/β))
 
-DirectedCognition2(m::BDDM) = DirectedCognition2(m, zeros(m.N))
-
-function initialize!(pol::DirectedCognition2, t)
+function initialize!(pol::DirectedCognition, t)
     pol.λ_avg .= average_precision(pol.m, t)
 end
 
-stop(pol::DirectedCognition2, s::State, t::Trial) = !voc_is_positive(pol, s, t)
-# stop(pol::DirectedCognition2, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
+stop(pol::DirectedCognition, s::State, t::Trial) = !voc_is_positive(pol, s, t, rand(pol.noise))
+# stop(pol::DirectedCognition, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
 
 "Directed Cognition approximation to the value of computation."
 function voc_dc(m, s, t)
     # note that we treat the number of samples as a continuous variable here
     # and we assume you can't take more than 100
     λ_avg = average_precision(m, t)
-    res = optimize(1, 100, abs_tol=m.cost) do n
+    res = optimize(1, 100, GoldenSection(), abs_tol=1) do n  # note abs_tol is on the number of samples
         -voc_n(m, s, n, λ_avg)
     end
     -res.minimum
 end
 
 "Short-circuit voc"
-function voc_is_positive(pol::Policy, s, t)
+function voc_is_positive(pol::Policy, s, t, offset)
     @unpack λ_avg, m = pol
-    # voc_n(m, s, 1, λ_avg) > 0 && return true
-    if voc_n(m, s, 1, λ_avg) > 0
-        # print("0 ")
-        return true
-    end
-    res = optimize(1, 100, abs_tol=m.cost, callback = x-> x.value < 0) do n
+    voc_n(m, s, 1, λ_avg) > 0 && return true
+    # NOTE: the target keyword relies on my fork of Optim.jl
+    # https://github.com/fredcallaway/Optim.jl/
+    res = optimize(1., 100., abs_tol=1., target=offset) do n
         -voc_n(m, s, n, λ_avg)
     end
-    # print(res.iterations, " ")
-    return res.minimum < 0
+    # Slower short circuit, works with stable Optim.jl
+    # res = optimize(1, 100, abs_tol=1, callback = x-> x.value < offset) do n
+    #     -voc_n(m, s, n, λ_avg)
+    # end
+    return res.minimum < offset
 end
 
 
@@ -67,10 +70,10 @@ function std_of_posterior_mean(λ, λ_obs)
 end
 
 "Expected termination reward in a future belief state with greater precision, λ_future."
-function expected_term_reward(μ, λ, risk_aversion, λ_future)
-    σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
+function expected_term_reward(μ1, μ2, σ1, σ2, λ_future1, λ_future2, risk_aversion)
     # expected subjective values in future belief state
-    v1 = μ[1] - risk_aversion * λ_future[1] ^ -0.5; v2 = μ[2] - risk_aversion * λ_future[2] ^ -0.5
+    v1 = μ1 - risk_aversion * λ_future1 ^ -0.5
+    v2 = μ2 - risk_aversion * λ_future2 ^ -0.5
     # standard deviation of difference beteween future values
     θ = √(σ1^2 + σ2^2)
     α = (v1 - v2) / θ  # difference scaled by std
@@ -79,16 +82,27 @@ function expected_term_reward(μ, λ, risk_aversion, λ_future)
     v1 * p1 + v2 * p2 + θ * normpdf(α)
 end
 
+# function expected_term_reward(μ, λ, risk_aversion, λ_future)
+#     σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
+#     # expected subjective values in future belief state
+#     v1 = μ[1] - risk_aversion * λ_future[1] ^ -0.5; v2 = μ[2] - risk_aversion * λ_future[2] ^ -0.5
+#     # standard deviation of difference beteween future values
+#     θ = √(σ1^2 + σ2^2)
+#     α = (v1 - v2) / θ  # difference scaled by std
+#     p1 = normcdf(α)  # p(V1 > V2)
+#     p2 = 1 - p1
+#     v1 * p1 + v2 * p2 + θ * normpdf(α)
+# end
+
 "Value of information from n more samples (assuming equal attention)."
 function voi_n(m::BDDM, s::State, n::Real, λ_avg::Vector)
-    λ_μ = m.tmp
-    λ_obs = n .* λ_avg
-    for i in eachindex(s.λ)
-        λ_μ[i] = std_of_posterior_mean(s.λ[i], λ_obs[i]) ^ -2
-    end
-    λ_future = s.λ .+ λ_obs
+    σ1 = std_of_posterior_mean(s.λ[1], n * λ_avg[1])
+    σ2 = std_of_posterior_mean(s.λ[2], n * λ_avg[2])
+
+    λ_future1 = s.λ[1] + n * λ_avg[1]
+    λ_future2 = s.λ[2] + n * λ_avg[2]
     # σ_μ ≈ 0. && return 0.  # avoid error initializing Normal
-    expected_term_reward(s.μ, λ_μ, m.risk_aversion, λ_future) - term_reward(m, s)
+    expected_term_reward(s.μ[1], s.μ[2], σ1, σ2, λ_future1, λ_future2, m.risk_aversion) - term_reward(m, s)
 end
 
 "Value of computation from n more samples."
