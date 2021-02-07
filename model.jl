@@ -27,10 +27,20 @@ State(m::BDDM) = State(fill(m.prior_mean, m.N), fill(m.prior_precision, m.N))
 Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
 
 "A single choice trial"
-struct Trial
+abstract type Trial end
+
+struct SimTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
     presentation_times::Vector{Distribution}
+end
+
+struct HumanTrial <: Trial
+    value::Vector{Float64}
+    confidence::Vector{Float64}
+    presentation_times::Vector{Distribution}  # presentation time distribution
+    real_presentation_times::Vector{Int}  # actual presentation times
+    choice::Int
 end
 
 # ---------- Updating ---------- #
@@ -46,15 +56,15 @@ end
 
 Draws samples of each item, centered on their true values with precision based
 on confidence and attention. Integrates these samples into the current belief
-State by Bayesian inference.
+State by Bayesian inference. The precision used to generate the samples (λ_objective)
+may differ from the precision assumed when performing the posterior update (λ_subjective).
 "
-function update!(m::BDDM, s::State, true_value::Vector, λ_obs::Vector)
-    for i in eachindex(λ_obs)
-        λ_obs[i] == 0 && continue  # no update
-        σ_obs = λ_obs[i] ^ -0.5
+function update!(m::BDDM, s::State, true_value::Vector, λ_objective::Vector, λ_subjective::Vector)
+    for i in eachindex(λ_objective)
+        λ_objective[i] == 0 && continue  # no update
+        σ_obs = λ_objective[i] ^ -0.5
         obs = true_value[i] + σ_obs * randn()
-        λ_obs[i] = λ_obs[i] * m.over_confidence_slope + m.over_confidence_intercept
-        s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_obs[i])
+        s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_subjective[i])
     end
 end
 
@@ -77,21 +87,26 @@ end
 
 # ---------- Attention ---------- #
 
-"Precision for each item given the rating confidence and attention."
-function observation_precision(m::BDDM, confidence::Vector, attended_item::Int)
-    λ = m.tmp  # use pre-allocated array for efficiency
-    for i in eachindex(λ)
-        weight = i == attended_item ? 1. : m.attention_factor
-        λ[i] = m.base_precision * confidence[i] * weight
+function set_attention!(attention::Vector, m::BDDM, attended_item::Int, first_fix::Bool)
+    unattended = (first_fix ? 0 : m.attention_factor)
+    for i in eachindex(attention)
+        attention[i] = i == attended_item ? 1. : unattended
     end
-    λ
 end
 
-function make_switches(presentation_times)
-    switching = presentation_times |> enumerate |> Iterators.cycle |> Iterators.Stateful
+function make_switches(trial::SimTrial)
+    switching = trial.presentation_times |> enumerate |> Iterators.cycle |> Iterators.Stateful
     function switch()
         i, d = first(switching)
         t = max(1, round(Int, rand(d)))
+        i, t
+    end
+end
+
+function make_switches(trial::HumanTrial)
+    switching = zip(Iterators.cycle(eachindex(trial.value)), trial.real_presentation_times) |> Iterators.Stateful
+    function switch()
+        i, t = first(switching)
         i, t
     end
 end
@@ -109,37 +124,44 @@ stop(pol::CantStopWontStop, s::State, t::Trial) = false
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
 function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save_states=false)
-    switch = make_switches(t.presentation_times)
+    initialize!(pol, t)
+    switch = make_switches(t)
     attended_item, time_to_switch = switch()
+    timeout = false
     first_fix = true
     rt = 0
-    states = []
+    states = State[]
     presentation_times = zeros(Int, length(t.value))
-    while rt < max_rt
+
+    subjective_confidence = @. t.confidence * m.over_confidence_slope + m.over_confidence_intercept
+    attention = zeros(m.N); λ_objective = zeros(m.N); λ_subjective = zeros(m.N)
+
+    while true
         save_states && push!(states, copy(s))
         rt += 1
         if time_to_switch == 0
             attended_item, time_to_switch = switch()
             first_fix = false
         end
-        λ_obs = observation_precision(m, t.confidence, attended_item)
-        if first_fix
-            for i in eachindex(λ_obs)
-                if i != attended_item
-                    λ_obs[i] = 0
-                end
-            end
-        end
-        update!(m, s, t.value, λ_obs)
+        set_attention!(attention, m, attended_item, first_fix)
+        @. λ_objective = m.base_precision * t.confidence * attention
+        @. λ_subjective = m.base_precision * subjective_confidence * attention
+        update!(m, s, t.value, λ_objective, λ_subjective)
         presentation_times[attended_item] += 1
         time_to_switch -= 1
         stop(pol, s, t) && break
+        if rt == max_rt
+            timeout = true
+            break
+        end
     end
     value, choice = findmax(subjective_values(m, s))
     reward = value - rt * m.cost
     push!(states, s)
-    (choice=choice, rt=rt, reward=reward, states=states, presentation_times=presentation_times)
+    (;choice, rt, reward, states, presentation_times, timeout)
 end
+
+simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_rt=sum(t.real_presentation_times), kws...)
 
 
 # ---------- Miscellaneous ---------- #

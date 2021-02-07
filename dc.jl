@@ -9,12 +9,20 @@ for taking one additional sample to be max_N VOC(take N samples). This is a
 lower bound on the true VOC because you don't actually have to commit in
 advance.
 "
-struct DirectedCognition <: Policy
+struct DirectedCognition2 <: Policy
     m::BDDM
+    λ_avg::Vector{Float64}
 end
 
-stop(pol::DirectedCognition, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
 
+DirectedCognition2(m::BDDM) = DirectedCognition2(m, zeros(m.N))
+
+function initialize!(pol::DirectedCognition2, t)
+    pol.λ_avg .= average_precision(pol.m, t)
+end
+
+stop(pol::DirectedCognition2, s::State, t::Trial) = !voc_is_positive(pol, s, t)
+# stop(pol::DirectedCognition2, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
 
 "Directed Cognition approximation to the value of computation."
 function voc_dc(m, s, t)
@@ -26,6 +34,22 @@ function voc_dc(m, s, t)
     end
     -res.minimum
 end
+
+"Short-circuit voc"
+function voc_is_positive(pol::Policy, s, t)
+    @unpack λ_avg, m = pol
+    # voc_n(m, s, 1, λ_avg) > 0 && return true
+    if voc_n(m, s, 1, λ_avg) > 0
+        # print("0 ")
+        return true
+    end
+    res = optimize(1, 100, abs_tol=m.cost, callback = x-> x.value < 0) do n
+        -voc_n(m, s, n, λ_avg)
+    end
+    # print(res.iterations, " ")
+    return res.minimum < 0
+end
+
 
 "Average precision of samples for each item (averaging out attention)."
 function average_precision(m::BDDM, t::Trial)

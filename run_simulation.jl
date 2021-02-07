@@ -55,7 +55,7 @@ args = Dict(
     :risk_aversion => [0., 16e-3, 64e-3],
     :over_confidence_slope => [1.1, 1.5, 2],
 )
-run_many("sep9-basic.csv", args; skip_cols=[:cost])
+run_many("sep9-basic", args; skip_cols=[:cost])
 
 
 args = Dict(
@@ -64,7 +64,7 @@ args = Dict(
     :over_confidence_slope => [1.1, 1.5, 2],
     :prior_mean => -1.7
 )
-run_many("sep9-stupid_prior.csv", args; skip_cols=[:cost])
+run_many("sep9-stupid_prior", args; skip_cols=[:cost])
 
 
 args = Dict(
@@ -73,4 +73,4 @@ args = Dict(
     :over_confidence_slope => [0],
     :over_confidence_intercept => collect(range(0.5, 2.5, length=5))[2:end-1],
 )
-run_many("sep9-stupid_confidence.csv", args; skip_cols=[:cost])
+run_many("sep9-stupid_confidence", args; skip_cols=[:cost])
