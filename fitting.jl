@@ -2,87 +2,66 @@ include("utils.jl")
 include("model.jl")
 include("dc.jl")
 include("data.jl")
+
+using SpecialFunctions: digamma
+using ProgressMeter
 # %% --------
 
-trials = prepare_trials(all_data)
-
-
-# %% ==================== Plots ====================
-include("figure.jl"); start_watch()
-
+trials = prepare_trials(all_data; dt=.01)
+max_rt = quantile([t.rt for t in trials], .99)
+trials = filter(t-> t.rt ≤ max_rt, trials)
 # %% --------
 
+function is_hit((choice, rt), t, tol)
+    t.choice == choice && abs(rt - t.rt) ≤ tol
+end
+
+function sample_choice_rt(m::BDDM, t::Trial, ε::Float64)
+    if rand() < ε
+        choice = rand(1:2)
+        rt = rand(1:max_rt)
+        (choice, rt)
+    else
+        sim = simulate(m, DirectedCognition(m), t)
+        sim.timeout && return (-1, -1)
+        (sim.choice, sim.rt)
+    end
+end
+
+function fixed_loglike(m::BDDM, t::Trial; ε=.01, tol=0, N=10000)
+    hits = 0
+    for i in 1:N
+        if is_hit(sample_choice_rt(m, t, ε), t, tol)
+            hits +=1
+        end
+    end
+    log((hits + 1) / (N + 1))
+end
+
+function ibs_loglike(m::BDDM, t::Trial; ε=.01, tol=0)
+    k = 0
+    while true
+        k += 1
+        if is_hit(sample_choice_rt(m, t, ε), t, tol)
+            break
+        end
+        k == 1e6 && @warn "k = 1e6"
+        k == 1e7 && @warn "k = 1e7"
+        k == 1e8 && @warn "k = 1e8"
+    end
+    digamma(1) - digamma(k)  # below Eq 14
+end
+
+# %% --------
 m = BDDM(cost=1e-4, risk_aversion=16e-3)
-pol = DirectedCognition2(m)
-trials[1]
-@time sims = map(1:10000) do i
-    sim = simulate(m, pol, trials[1])
-    (sim.choice, sim.rt, sim.timeout)
-end
+subj = first(unique(t.subject for t in trials))
+subj_trials = filter(t->t.subject == subj, trials)
+results1 = @showprogress map(trials) do t
+    @timed ibs_loglike(m, t, tol=10, ε=.01)
+end;
 
-choice, rt, timeout = invert(sims)
-S = Table((; choice, rt, timeout))
-
-using Printf
-
-data[1].value
+results2 = @showprogress map(trials) do t
+    @timed fixed_loglike(m, t, tol=10, ε=.01)
+end;
 
 
-figure() do
-    rt = sum(t.real_presentation_times)
-    # plot(ylim=(0, 300))
-    vline!(cumsum(t.real_presentation_times), color=:gray, alpha=0.4)
-    title!(@sprintf("%.2f vs. %.2f", t.value...))
-    histogram!(filter(x->x.choice == 2, S).rt; bins=0:rt, lw=0, alpha=0.5, color="#E54545", label="choose second")
-    histogram!(filter(x->x.choice == 1, S).rt; bins=0:rt, lw=0, alpha=0.5, color="#36B5FF", label="choose first")
-end
-
-# %% --------
-
-function get_weird_sim()
-    for i in 1:1000
-        sim = simulate(m, pol, trials[1], save_states=true)
-        if !sim.timeout && sim.choice == 2 && sim.rt == 42
-            # println("found on attempt #$i")
-            return sim
-        end
-    end
-end
-
-sims = [get_weird_sim() for i in 1:1000]
-# %% --------
-weird_final = map(sims) do t
-    t.states[end]
-end
-
-# %% --------
-
-normal42 = map(1:1000) do i
-    for j in 1:1000
-        sim = simulate(m, pol, trials[1]; max_rt=42)
-        if sim.timeout
-            return sim.states[end]
-        end
-    end
-end
-# %% --------
-plot_μ!(states) = scatter!(invert([s.μ for s in states])...)
-
-figure() do
-    plot()
-    plot_μ!(normal42)
-    plot_μ!(weird_final)
-end
-
-
-
-# %% --------
-# figure() do
-#     map(sim.states) do s
-#         voc_dc(m, s, t)
-#     end |> plot
-# end
-
-figure() do
-    plot_sim(sim)
-end

@@ -40,7 +40,9 @@ struct HumanTrial <: Trial
     confidence::Vector{Float64}
     presentation_times::Vector{Distribution}  # presentation time distribution
     real_presentation_times::Vector{Int}  # actual presentation times
+    subject::Int
     choice::Int
+    rt::Int
 end
 
 # ---------- Updating ---------- #
