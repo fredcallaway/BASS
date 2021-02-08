@@ -46,7 +46,6 @@ end
 
 
 
-
 # %% ==================== Sobol + GP ====================
 
 xs = Iterators.take(SobolSeq(n_free(box)), 1000)
@@ -63,11 +62,8 @@ end
 chance = chance_loglike(trials[1:2:end]; tol=10)
 serialize("tmp/sobol_1", (;box, xs, results, chance))
 
-
 # %% --------
 
-
-chance = chance_loglike(trials[1:2:end]; tol=10)
 logp, converged = invert(results)
 best = partialsortperm(logp, 1:10)
 
@@ -78,25 +74,5 @@ end |> Table
 map(candidates[best]) do m
     ibs_loglike(m, trials[1:2:end]; ε=.5, tol=10, repeats=10, min_multiplier=2).logp
 end
-@time ibs_loglike(m, trials[1:2:end]; ε=.5, tol=10, repeats=10, min_multiplier=2).logp
 
-
-
-
-
-
-# %% --------
-
-invert(results).logp .- chance_loglike(trials[1:2:end]; tol=10)
-
-
-
-@time ibs_loglike(first(candidates), trials[1:100]; ε=.1, tol=2, repeats=5)
-
-
-
-# m = first(candidates)
-# ibs(trials[1:100]; repeats=30, min_logp=-Inf) do t
-#     is_hit(sample_choice_rt(m, t, 1.), t, 2)
-# end
 # chance_loglike(trials[1:100]; tol=2)

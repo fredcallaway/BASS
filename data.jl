@@ -50,11 +50,11 @@ function HumanTrial(d::NamedTuple; μ, σ, dt)
     real_presentation_times = round.(Int, d.presentation_duration ./ dt)
     rt = sum(real_presentation_times)
     HumanTrial((d.value .- μ) ./ σ, d.confidence, presentation_times, 
-               real_presentation_times, d.subject, d.choice, rt)
+               real_presentation_times, d.subject, d.choice, rt, dt)
 end
 
-function prepare_trials(data; dt=.01)
-    μ, σ = juxt(mean, std)(flatten(data.value))
+function prepare_trials(data; dt=.01, normalize_value=true)
+    μ, σ = normalize_value ? juxt(mean, std)(flatten(data.value)) : (0, 1)
     map(data) do d
         HumanTrial(d; μ, σ, dt)
     end

@@ -29,12 +29,6 @@ Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
 "A single choice trial"
 abstract type Trial end
 
-struct SimTrial <: Trial
-    value::Vector{Float64}
-    confidence::Vector{Float64}
-    presentation_times::Vector{Distribution}
-end
-
 struct HumanTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
@@ -43,7 +37,15 @@ struct HumanTrial <: Trial
     subject::Int
     choice::Int
     rt::Int
+    dt::Float64
 end
+
+struct SimTrial <: Trial
+    value::Vector{Float64}
+    confidence::Vector{Float64}
+    presentation_times::Vector{Distribution}
+end
+SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_times)
 
 # ---------- Updating ---------- #
 
@@ -163,8 +165,8 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
     (;choice, rt, reward, states, presentation_times, timeout)
 end
 
-simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_rt=sum(t.real_presentation_times), kws...)
-
+simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_rt=t.rt, kws...)
+simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, DirectedCognition(m), t; kws...)
 
 # ---------- Miscellaneous ---------- #
 

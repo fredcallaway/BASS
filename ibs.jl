@@ -1,5 +1,3 @@
-using Distributions
-
 mutable struct IBSEstimate{F}
     sample_hit::F
     k::Int
@@ -47,28 +45,4 @@ function ibs(sample_hit::Function, data::Vector; kws...)
     end
     ibs(hit_samplers; kws...)
 end
-
-# # %% --------
-
-# truth = Bernoulli(0.5)
-# N = 100
-# data = [rand(truth) for i in 1:N]
-
-# ps = 0.05:0.05:0.95
-# res = map(ps) do p
-#     # hit_samplers = map(data) do d
-#     #     () -> rand(Bernoulli(p)) == d
-#     # end
-#     # ibs(hit_samplers; repeats=1000)
-#     ibs(data; repeats=100) do d
-#         rand(Bernoulli(p)) == d
-#     end
-# end
-
-# using SplitApplyCombine
-# lp, converged = invert(res)
-# figure() do
-#     plot(ps, lp)
-# end
-
 

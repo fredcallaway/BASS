@@ -13,6 +13,7 @@ function figure(f, name="tmp"; kws...)
     p = "fighist/$dt-$(replace(name, "/" => "-")).png"
     savefig(p)
     if name != "tmp"
+        mkpath(dirname("figs/$name"))
         cp(p, "figs/$name.png"; force=true)
     end
 end
