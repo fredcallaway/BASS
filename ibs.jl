@@ -1,13 +1,13 @@
 using Distributions
 
-mutable struct IBSEstimate2{F}
+mutable struct IBSEstimate{F}
     sample_hit::F
     k::Int
     logp::Float64
 end
-IBSEstimate2(f::Function) = IBSEstimate2(f, 1, 0.)
+IBSEstimate(f::Function) = IBSEstimate(f, 1, 0.)
 
-function sample_hit!(est::IBSEstimate2)
+function sample_hit!(est::IBSEstimate)
     if est.sample_hit()
         true
     else
@@ -17,20 +17,10 @@ function sample_hit!(est::IBSEstimate2)
     end
 end
 
-est = IBSEstimate2(()->false)
-est.logp == digamma(1) - digamma(est.k)
-sample_hit!(est)
-est.logp ≈ digamma(1) - digamma(est.k)
-
-
-# est.logp 
-# est.k
-
-# %% --------
 function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
     total_logp = 0.
     for i in 1:repeats
-        unconverged = Set(IBSEstimate2(f) for f in hit_samplers)
+        unconverged = Set(IBSEstimate(f) for f in hit_samplers)
         converged_logp = 0.
         while !isempty(unconverged)
             unconverged_logp = 0.

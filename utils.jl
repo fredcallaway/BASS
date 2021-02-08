@@ -1,3 +1,5 @@
+using DataStructures: OrderedDict
+
 function mutate(x::T; kws...) where T
     for field in keys(kws)
         if !(field in fieldnames(T))
@@ -54,7 +56,7 @@ Base.reshape(idx::Union{Int,Colon}...) = x -> reshape(x, idx...)
 
 
 valmap(f, d::Dict) = Dict(k => f(v) for (k, v) in d)
-# valmap(f, d::OrderedDict) = OrderedDict(k => f(v) for (k, v) in d)
+valmap(f, d::OrderedDict) = OrderedDict(k => f(v) for (k, v) in d)
 # valmap(f, d::T) where T <: AbstractDict = T(k => f(v) for (k, v) in d)
 
 valmap(f) = d->valmap(f, d)
@@ -91,3 +93,37 @@ function mutate(x::T; kws...) where T
 end
 
 getfields(x) = (getfield(x, f) for f in fieldnames(typeof(x)))
+
+# %% ==================== Axis Keys ====================
+using AxisKeys
+function grid(;kws...)
+    X = map(Iterators.product(values(kws)...)) do x
+        (; zip(keys(kws), x)...)
+    end
+    KeyedArray(X; kws...)
+end
+
+function keyed(name, xs)
+    KeyedArray(xs; Dict(name => xs)...)
+end
+
+keymax(X::KeyedArray) = (; (d=>x[i] for (d, x, i) in zip(dimnames(X), axiskeys(X), argmax(X).I))...)
+keymax(x::KeyedArray{<:Real, 1}) = axiskeys(x, 1)[argmax(x)]
+
+Base.dropdims(idx::Union{Symbol,Int}...) = X -> dropdims(X, dims=idx)
+
+
+function table(X::KeyedArray)
+    map(collect(pairs(X))) do (idx, v)
+        keyvals = (name => keys[i] for (name, keys, i) in zip(dimnames(X), axiskeys(X), idx.I))
+        (;keyvals..., value=v)
+    end[:]
+end
+
+function table(X::KeyedArray{<:NamedTuple})
+    map(collect(pairs(X))) do (idx, v)
+        keyvals = (name => keys[i] for (name, keys, i) in zip(dimnames(X), axiskeys(X), idx.I))
+        (;keyvals..., v...,)
+    end[:]
+end
+
