@@ -17,16 +17,19 @@ function plot_marginals(run_name)
             minimum(loss; dims) |> dropdims(dims...)
         end
         figure("$run_name/$subject") do
+            ylim = (min(minimum(loss), chance)-10, chance*1.2+10)
             ps = map(dimnames(loss), axiskeys(loss), marginals) do name, x, l
                 d = box[name]
                 maybelog = :log in d ? (:log,) : ()
                 # maybelog = ()
-                plot(x, l, xaxis=(string(name), maybelog...))
-                hline!([chance], color=:gray, ls=:dash)
+                plot(x, l; xaxis=(string(name), maybelog...), ylim, ylabel="Negative Log Likelihood")
+                hline!([chance, chance*1.2], color=:gray, ls=:dash)
             end
             plot(ps..., size=(600, 600))
         end
     end
 end
 
-plot_marginals("addm/grid/v3")
+# plot_marginals("addm/grid/v6-025")
+plot_marginals("addm/grid/v7")
+# plot_marginals("addm/grid/v5-001")

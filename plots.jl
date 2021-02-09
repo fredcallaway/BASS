@@ -37,7 +37,7 @@ m = BDDM(cost=2.3e-4, risk_aversion=6e-2, base_precision=.01, attention_factor=.
 i = findfirst(trials) do t
     t.value[1] == t.value[2] && t.value[1] < -1
 end
-i = 9
+i = 7
 t = trials[i]
 
 @time S = map(1:10000) do i
@@ -59,8 +59,9 @@ end
 
 data = group(d->d.subject, all_data) |> first
 
-trials = prepare_trials(Table(data); dt=.025, normalize_value=false)
-m = ADDM(0.3, 0.0002 * 25, .02 * 5)
+dt = .025
+trials = prepare_trials(Table(data); dt, normalize_value=false)
+m = ADDM()
 
 # trials = prepare_trials(Table(data); dt=.001, normalize_value=false)
 # m = ADDM()
@@ -69,8 +70,8 @@ m = ADDM(0.3, 0.0002 * 25, .02 * 5)
 # ibs_loglike(m, trials[1:2:end]; ε=1., tol=10, repeats=100, min_multiplier=2)
 # chance_loglike(trials[1:2:end]; tol=10)
 
-t = trials[4]
-@time S = map(1:10000) do i
+t = rand(trials)
+@time S = map(1:100000) do i
     choice, rt = sample_choice_rt(m, t, 0.)
     (; choice, rt)
 end |> Table
@@ -78,11 +79,14 @@ end |> Table
 figure() do
     # plot(ylim=(0, 300))
     vline!(cumsum(t.real_presentation_times), color=:gray, alpha=0.4)
-
-
-    title!(@sprintf("%.2f vs. %.2f\n%d%%", t.value..., 100*mean(S.choice .== -1)))
+    if t.choice == 1
+        title!(@sprintf("[[%.2f]] vs. %.2f - %d%% overshot", t.value..., 100*mean(S.choice .== -1)))
+    else
+        title!(@sprintf("%.2f vs. [[%.2f]] - %d%% overshot", t.value..., 100*mean(S.choice .== -1)))
+    end
     g = group(x->x.choice, S)
-    bins = 1:t.rt
+    bins = 1:ceil(Int, .025 / dt):t.rt
+
     # bins = 1:20:t.rt
     # histogram!(g[-1].rt; bins, lw=0, alpha=1, color="#FFDD47", label="timeout")
     histogram!(g[2].rt; bins, lw=0, alpha=0.5, color="#E54545", label="choose second")

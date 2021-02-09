@@ -62,3 +62,14 @@ end
 
 # %% --------
 
+function table(trials::Vector{HumanTrial})
+    map(trials) do t
+        x = ntfromstruct(t)
+        m1, m2 = mean.(x.presentation_times)
+        order = m1 > m2 ? :longfirst : :shortfirst
+        presentation_duration = x.real_presentation_times .* t.dt
+        total_presentation = [sum(presentation_duration[1:2:end]), sum(presentation_duration[2:2:end])]
+        (;x.subject, x.value, x.confidence, presentation_duration, order, x.choice, rt=x.rt * t.dt)
+    end |> Table
+end
+

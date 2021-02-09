@@ -16,16 +16,22 @@ end
 
 # %% ==================== Binary Accumulation ====================
 
-function simulate(m::ADDM, t::Trial; max_t=100000,
+
+function simulate(m::ADDM, t::SimTrial; dt, max_t=100000, kws...)
+    _simulate(m, t, dt, max_t; kws...)
+end
+
+function simulate(m::ADDM, t::HumanTrial; kws...)
+    _simulate(m, t, t.dt, t.rt; kws...)
+end
+
+function _simulate(m::ADDM, t::Trial, dt::Float64, max_t::Int;
                   save_history = false, save_fixations = false)
     @unpack θ, d, σ = m
-    d *= (t.dt / .001)  # rescale the parameters to account for different time step size
-    σ *=  √(t.dt / .001)  # this makes the predictions roughly insensitive to dt
+    d *= (dt / .001)  # rescale the parameters to account for different time step size
+    σ *=  √(dt / .001)  # this makes the predictions roughly insensitive to dt
     
     v = t.value
-    if t isa HumanTrial
-        max_t = t.rt
-    end
     @assert length(v) == 2
     switch = make_switches(t)
     noise = Normal(0, σ)
