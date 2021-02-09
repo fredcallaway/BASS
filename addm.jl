@@ -18,16 +18,20 @@ end
 
 function simulate(m::ADDM, t::Trial; max_t=100000,
                   save_history = false, save_fixations = false)
+    @unpack θ, d, σ = m
+    d *= (t.dt / .001)  # rescale the parameters to account for different time step size
+    σ *=  √(t.dt / .001)  # this makes the predictions roughly insensitive to dt
+    
     v = t.value
     if t isa HumanTrial
         max_t = t.rt
     end
     @assert length(v) == 2
     switch = make_switches(t)
-    noise = Normal(0, m.σ)
+    noise = Normal(0, σ)
     history = save_history ? Float64[] : nothing
     E = 0.  # total accumulated evidence
-    xx = m.d .* [v[1] - m.θ * v[2], m.θ * v[1] - v[2]]  # the two accumulation rates
+    xx = d .* [v[1] - θ * v[2], θ * v[1] - v[2]]  # the two accumulation rates
     choice = -1
     ft = 0  # no initial fixation
 
