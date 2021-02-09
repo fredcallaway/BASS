@@ -17,8 +17,8 @@ include("box.jl")
 m0 = ADDM()
 box = Box(
     θ = (0, 1),
-    d = (m0.d / 3, m0.d * 3, :log),
-    σ = (m0.σ / 3, m0.σ * 3, :log),
+    d = (m0.d / 5, m0.d * 5, :log),
+    σ = (m0.σ / 2, m0.σ * 2, :log),
 )
 
 # # trials = prepare_trials(Table(data); dt=.025, normalize_value=false)
@@ -32,7 +32,7 @@ candidates = map(grid(13, box)) do g
     ADDM(;g...)
 end
 
-run_name = "addm/grid/v7"
+run_name = "addm/grid/v8"
 mkpath("tmp/$run_name")
 # to_fit = [first(pairs(group(d->d.subject, all_data)))]
 to_fit = pairs(group(d->d.subject, all_data))
@@ -50,7 +50,7 @@ results = map(to_fit) do (subj, data)
         t.rt <= max_rt(t)
     end
     # trials = prepare_trials(Table(data); dt=.001)
-    ibs_kws = (ε=.01, tol=1, repeats=10, min_multiplier=1.2)
+    ibs_kws = (ε=.01, tol=0, repeats=10, min_multiplier=1.2)
     results = @showprogress pmap(candidates) do m
         ibs_loglike(m, trials[1:2:end]; ibs_kws...)
     end
