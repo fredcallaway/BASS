@@ -2,14 +2,14 @@ include("figure.jl")
 
 # %% --------
 
-function plot_marginals(run_name)
+function plot_recovery_marginals(run_name)
     tmp_path = "tmp/$run_name/"
     for subject in readdir(tmp_path)
-        plot_marginals(run_name, subject)
+        plot_recovery_marginals(run_name, subject)
     end
 end
 
-function plot_marginals(run_name, subject)
+function plot_recovery_marginals(run_name, subject)
     
     tmp_path = "tmp/$run_name/"
     figs_path = "figs/$run_name/"
@@ -40,5 +40,30 @@ function plot_marginals(run_name, subject)
     end
     
 end
-plot_marginals("addm/recovery")
+plot_recovery_marginals("addm/recovery2")
+
+# %% ==================== Sanity check default parameters ====================
+
+data = first(group(d->d.subject, all_data))
+trials = prepare_trials(Table(data); dt=.025, normalize_value=false)
+
+m = ADDM()
+sim_trials = map(trials) do t
+    while true
+        sim = simulate(m, SimTrial(t); dt=.025, save_fixations=true, max_t=max_rt(t))
+        if sim.choice != -1
+            return mutate(t; sim.choice, sim.rt, real_presentation_times=sim.fix_times)
+        end
+    end
+end
+
+T = table(sim_trials)
+
+choose_first = map(group(t-> t.order, T)) do trials
+    2 - mean(trials.choice)
+end
+
+choose_first = map(group(t-> t.order, all_data)) do trials
+    2 - mean(trials.choice)
+end
 
