@@ -19,6 +19,7 @@ box = Box(
     θ = (0, 1),
     d = (m0.d / 5, m0.d * 5, :log),
     σ = (m0.σ / 2, m0.σ * 2, :log),
+    reference = (0, 10),
 )
 
 # # trials = prepare_trials(Table(data); dt=.025, normalize_value=false)
@@ -28,11 +29,11 @@ box = Box(
 #     σ = (10^-2, 10^-0.5, :log),
 # )
 
-candidates = map(grid(13, box)) do g
+candidates = map(grid(10, box)) do g
     ADDM(;g...)
 end
 
-run_name = "addm/grid/v8"
+run_name = "addm/grid/v9"
 mkpath("tmp/$run_name")
 # to_fit = [first(pairs(group(d->d.subject, all_data)))]
 to_fit = pairs(group(d->d.subject, all_data))

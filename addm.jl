@@ -8,11 +8,14 @@ v: a vector of item ratings/values
 E: accumulated evidence
 =#
 
+
 @with_kw struct ADDM
     θ::Float64 = 0.3
     d::Float64 = .0002
     σ::Float64 = .02
+    reference = 0.
 end
+
 
 # %% ==================== Binary Accumulation ====================
 
@@ -27,11 +30,11 @@ end
 
 function _simulate(m::ADDM, t::Trial, dt::Float64, max_t::Int;
                   save_history = false, save_fixations = false)
-    @unpack θ, d, σ = m
+    @unpack θ, d, σ, reference = m
     d *= (dt / .001)  # rescale the parameters to account for different time step size
     σ *=  √(dt / .001)  # this makes the predictions roughly insensitive to dt
     
-    v = t.value
+    v = t.value .- reference
     @assert length(v) == 2
     switch = make_switches(t)
     noise = Normal(0, σ)
@@ -43,8 +46,9 @@ function _simulate(m::ADDM, t::Trial, dt::Float64, max_t::Int;
 
     fix_times = save_fixations ? Int[] : nothing
 
-    x = NaN  # have to initialize outside the if statement
+    x = NaN  # have to initialize outside the while loop
     timeout = true
+    first_fix = false
     rt = 0
     while rt < max_t
         rt += 1
@@ -52,7 +56,12 @@ function _simulate(m::ADDM, t::Trial, dt::Float64, max_t::Int;
         if ft == 0
             f, ft = switch()
             save_fixations && push!(fix_times, ft)
-            x = xx[f]
+            if first_fix
+                x = v[f]  # ignore other item
+                first_fix = false
+            else
+                x = xx[f]
+            end
         end
         E += x + ε
         ft -= 1
