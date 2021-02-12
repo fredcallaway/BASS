@@ -11,7 +11,6 @@ end
 using ProgressMeter
 using Sobol
 using SplitApplyCombine
-@everywhere 
 # %% --------
 
 
@@ -24,22 +23,54 @@ box = Box(
 
 data = group(d->d.subject, all_data) |> first
 trials = prepare_trials(Table(data); dt=.025)
-# m = BDDM()
-# @time ibs_loglike(m, trials[1:2:end]; ε=.01, tol=0, repeats=1, min_multiplier=1)
+m = BDDM()
+@time ibs_loglike(m, trials[1:2:end]; ε=.1, tol=0, repeats=10, min_multiplier=1.2)
 
 # %% --------
-xs = Iterators.take(SobolSeq(n_free(box)), 10000) |> collect
-@everywhere trials = $trials
-@everywhere box = $box
+
+function sobol_search(model, version, box, N; data=all_data,
+        ε=.01, tol=0, repeats=10, min_multiplier=1.2)
+    path = "tmp/$(lowercase(string(model)))/sobol/$version"
+    println("Writing results to $path")
+    mkpath(path)
+    
+    xs = Iterators.take(SobolSeq(n_free(box)), N) |> collect
+
+    map(pairs(group(d->d.subject, all_data))) do (subj, data)
+        out = "$path/$subj"
+        if isfile(out)
+            println("$out already exists")
+            return
+        end
+
+        println("Fitting subject $subj")
+        trials = prepare_trials(Table(subj_data); dt=.025)
+        filter!(trials) do t
+            # this can happen due to rounding error
+            t.rt <= max_rt(t)
+        end
+
+        ibs_kws = (;ε, tol, repeats, min_multiplier)
+        results = @showprogress pmap(xs) do x
+            m = BDDM(;box(x)...)
+            ibs_loglike(m, trials[1:2:end]; ibs_kws...)
+        end
+        chance = chance_loglike(trials[1:2:end]; ibs_kws.tol)
+        serialize(out, (;box, xs, trials, results, chance, ibs_kws))
+    end
+end
+
+
+# %% --------
+xs = Iterators.take(SobolSeq(n_free(box)), 1000) |> collect
 results = @showprogress pmap(xs) do x
     m = BDDM(;box(x)...)
-    ibs_loglike(m, trials[1:2:end]; ε=.05, tol=0, repeats=50, min_multiplier=1.2)
+    ibs_loglike(m, trials[1:2:end]; ibs_kws....)
 end
 subj = data[1].subject
 chance = chance_loglike(trials[1:2:end]; tol=0)
-mkpath("tmp/bddm/sobol/v3")
-serialize("tmp/bddm/sobol/v3/$subj", (;box, xs, results, chance))
-
+mkpath("tmp/bddm/sobol/v4")
+serialize("tmp/bddm/sobol/v4/$subj", (;box, trials, results, chance, ibs_kws))
 
 # %% --------
 X = invert(xs[partialsortperm(nll, 1:100)])

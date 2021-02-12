@@ -55,8 +55,7 @@ box = Box(
     cost = (.001, .003),
     risk_aversion = (0, .2),
 )
-
-grid_search(BDDM, "v1", box, 10; repeats=50, ε=.05)
+grid_search(BDDM, "v2", box, 10; repeats=100, ε=.05, min_multiplier=1)
 
 
 

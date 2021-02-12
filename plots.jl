@@ -2,10 +2,12 @@ using SplitApplyCombine
 
 include("utils.jl")
 include("model.jl")
+include("addm.jl")
 include("dc.jl")
 include("data.jl")
 include("figure.jl")
 using Printf
+using Query
 # %% ==================== diffusion ====================
 
 function plot_sim(sim)
@@ -61,7 +63,7 @@ data = group(d->d.subject, all_data) |> first
 
 dt = .025
 trials = prepare_trials(Table(data); dt, normalize_value=false)
-m = ADDM()
+m = ADDM(reference=5)
 
 # trials = prepare_trials(Table(data); dt=.001, normalize_value=false)
 # m = ADDM()
@@ -70,10 +72,10 @@ m = ADDM()
 # ibs_loglike(m, trials[1:2:end]; ε=1., tol=10, repeats=100, min_multiplier=2)
 # chance_loglike(trials[1:2:end]; tol=10)
 
-t = rand(trials)
+t = trials |> @filter(_.value[1] < 5) |> collect |> rand
+
 @time S = map(1:100000) do i
-    choice, rt = sample_choice_rt(m, t, 0.)
-    (; choice, rt)
+    select(simulate(m, t), (:choice, :rt))
 end |> Table
 
 figure() do

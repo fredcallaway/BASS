@@ -5,13 +5,14 @@ using Parameters
 
 "Bayesian Drift Diffusion Model"
 @with_kw struct BDDM
-    N::Int = 2                      # number of items
-    base_precision::Float64 = .05   # precision of sample of attended item with confidence=1
-    attention_factor::Float64 = .1  # down-weighting of precision for unattended item (less than 1)
-    cost::Float64 = 1e-3            # cost per sample
-    risk_aversion::Float64 = 0.     # scales penalty for variance of chosen item
-    over_confidence_slope::Float64 = 1.   # treat observations as though they were more or less noisy 
-    over_confidence_intercept::Float64 = 0.   # treat observations as though they were more or less noisy 
+    N::Int = 2                            # number of items
+    base_precision::Float64 = .05         # precision of sample of attended item with confidence=1
+    attention_factor::Float64 = .1        # down-weighting of precision for unattended item (less than 1)
+    cost::Float64 = 1e-3                  # cost per sample
+    risk_aversion::Float64 = 0.           # scales penalty for variance of chosen item
+    confidence_slope::Float64 = 0.        # how much does confidence increase your precision?
+    over_confidence::Float64 = 0.         # treat observations as though they were more or less noisy 
+    over_confidence_slope::Float64 = 0.   # treat observations as though they were more or less noisy 
     prior_mean::Float64 = 0.
     prior_precision::Float64 = 1.
     tmp::Vector{Float64} = zeros(N) # implementation detail, for memory-efficiency
@@ -137,8 +138,14 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
     states = State[]
     presentation_times = zeros(Int, length(t.value))
 
-    subjective_confidence = @. t.confidence * m.over_confidence_slope + m.over_confidence_intercept
+    objective_precision = @. m.base_precision + m.confidence_slope * t.confidence
+    # objective_precision = @. m.base_precision * t.confidence ^ m.confidence_slope
+    # subjective_precision = @. (m.base_precision + m.over_confidence_intercept) + 
+                               # (m.confidence_slope + m.over_confidence_slope) * t.confidence
+
     attention = zeros(m.N); λ_objective = zeros(m.N); λ_subjective = zeros(m.N)
+
+    λ_subjective = λ_objective  # disabling subjective confidence
 
     while true
         save_states && push!(states, copy(s))
@@ -148,8 +155,9 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
             first_fix = false
         end
         set_attention!(attention, m, attended_item, first_fix)
-        @. λ_objective = m.base_precision * t.confidence * attention
-        @. λ_subjective = m.base_precision * subjective_confidence * attention
+        @. λ_objective = objective_precision * attention
+        # @. λ_subjective = subjective_precision * subjective_confidence * attention
+        # @. λ_subjective = subjective_precision * subjective_confidence * attention
         update!(m, s, t.value, λ_objective, λ_subjective)
         presentation_times[attended_item] += 1
         time_to_switch -= 1
@@ -170,20 +178,20 @@ simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, DirectedCognition(m), t; 
 
 # ---------- Miscellaneous ---------- #
 
-namedtuple(t::Trial) = (
-    val1 = t.value[1],
-    val2 = t.value[2],
-    conf1 = t.confidence[1],
-    conf2 = t.confidence[2],
-)
+# namedtuple(t::Trial) = (
+#     val1 = t.value[1],
+#     val2 = t.value[2],
+#     conf1 = t.confidence[1],
+#     conf2 = t.confidence[2],
+# )
 
-namedtuple(m::BDDM) = (
-    base_precision = m.base_precision,
-    attention_factor = m.attention_factor,
-    cost = m.cost,
-    risk_aversion = m.risk_aversion,
-    over_confidence_slope = m.over_confidence_slope,
-    over_confidence_intercept = m.over_confidence_intercept,
-    prior_mean = m.prior_mean,
-    prior_precision = m.prior_precision
-)
+# namedtuple(m::BDDM) = (
+#     base_precision = m.base_precision,
+#     attention_factor = m.attention_factor,
+#     cost = m.cost,
+#     risk_aversion = m.risk_aversion,
+#     over_confidence_slope = m.over_confidence_slope,
+#     over_confidence_intercept = m.over_confidence_intercept,
+#     prior_mean = m.prior_mean,
+#     prior_precision = m.prior_precision
+# )

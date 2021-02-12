@@ -1,5 +1,5 @@
 include("figure.jl")
-
+import Missings
 # %% --------
 
 function plot_marginals(run_name)
@@ -11,6 +11,7 @@ function plot_marginals(run_name)
         @unpack box, results, chance = deserialize(tmp_path * subject)
         loss = -getfield.(results, :logp)
         chance = -chance
+        loss = fillmissing.(loss, chance)
 
         marginals = map(dimnames(loss)) do d
             dims = setdiff(dimnames(loss), [d])
@@ -30,6 +31,5 @@ function plot_marginals(run_name)
     end
 end
 
-# plot_marginals("addm/grid/v6-025")
-plot_marginals("addm/grid/v7")
-# plot_marginals("addm/grid/v5-001")
+# plot_marginals("addm/grid/v9")
+plot_marginals("bddm/grid/v2")
