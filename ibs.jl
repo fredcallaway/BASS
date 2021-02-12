@@ -23,28 +23,31 @@ end
 
 function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
     total_logp = 0.
+    total_var = 0.
     for i in 1:repeats
         unconverged = Set(IBSEstimate(f) for f in hit_samplers)
         converged_logp = 0.
+        converged_var = 0.
         while !isempty(unconverged)
             unconverged_logp = 0.
             for est in unconverged
                 if sample_hit!(est)
-                    converged_logp += est.logp
+                    converged_logp += mean(est)
+                    converged_var += var(est)
                     delete!(unconverged, est)
                 else
-                    unconverged_logp += est.logp
+                    unconverged_logp += mean(est)
                 end
             end
             if converged_logp + unconverged_logp < min_logp
-                return (logp=min_logp, converged=false)
+                return (logp=min_logp, var=missing, converged=false)
             end
         end
         total_logp += converged_logp
+        total_var += converged_var
     end
-    nll_var = var(est)
-
-    return (nll=-total_logp / repeats, converged=true)
+    
+    return (logp=total_logp / repeats, var=total_var / repeats^2, converged=true)
 end
 
 function ibs(sample_hit::Function, data::Vector; kws...)
