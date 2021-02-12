@@ -1,9 +1,15 @@
+using SpecialFunctions: trigamma
+
 mutable struct IBSEstimate{F}
     sample_hit::F
     k::Int
     logp::Float64
 end
 IBSEstimate(f::Function) = IBSEstimate(f, 1, 0.)
+
+Distributions.var(est::IBSEstimate) = trigamma(1) - trigamma(est.k)
+Distributions.mean(est::IBSEstimate) = est.logp
+
 
 function sample_hit!(est::IBSEstimate)
     if est.sample_hit()
@@ -36,7 +42,9 @@ function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
         end
         total_logp += converged_logp
     end
-    return (logp=total_logp / repeats, converged=true)
+    nll_var = var(est)
+
+    return (nll=-total_logp / repeats, converged=true)
 end
 
 function ibs(sample_hit::Function, data::Vector; kws...)
