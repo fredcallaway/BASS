@@ -193,7 +193,7 @@ function simulate(m::BDDM, pol::Policy; t=SimTrial(), s=State(m), max_step=cld(2
     (;choice, time_step, reward, states, presentation_times, timeout)
 end
 
-simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_rt=t.rt, kws...)
+simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
 simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, DirectedCognition(m), t; kws...)
 
 # ---------- Miscellaneous ---------- #

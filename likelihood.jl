@@ -18,7 +18,7 @@ function sample_choice_rt(m, t::Trial, ε)
     else
         sim = simulate(m, t)
         sim.timeout && return (-1, -1)
-        (sim.choice, sim.rt)
+        (sim.choice, sim.time_step)
     end
 end
 

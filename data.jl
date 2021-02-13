@@ -39,7 +39,7 @@ all_data = map(open(JSON.parse, "data/Study3Fred.json")) do d
 end  |> skipmissing |> collect |> Vector{NamedTuple} |>  Table
 # %% --------
 function get_presentation_dists(durations, dt)
-    dists = [Normal(.2/dt, .05/dt), Normal(.5/dt, .1/dt)]
+    dists = [Normal(.2, .05), Normal(.5, .1)]
     avg_first = mean(durations[1:2:end])
     avg_second = mean(durations[2:2:end])
     avg_first < avg_second ? dists : reverse(dists)
