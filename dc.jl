@@ -109,6 +109,21 @@ end
 voc_n(m::BDDM, s::State, n::Real, λ_avg::Vector, dt::Float64) = voi_n(m, s, n, λ_avg) - dt * m.cost * n
 
 
+struct MetaGreedy <: Policy
+    m::BDDM
+    λ_avg::Vector{Float64}
+    n::Int
+end
+MetaGreedy(m, n=1) = MetaGreedy(m, zeros(m.N), n)
+
+function initialize!(pol::MetaGreedy, t)
+    pol.λ_avg .= average_precision(pol.m, t)
+end
+
+function stop(pol::MetaGreedy, s::State, t::Trial)
+    voc_n(pol.m, s, pol.n, pol.λ_avg, t.dt) <= 0
+end
+
 # NOT CORRECT
 # "Value of perfect information about all items."
 # function vpi(s)
