@@ -32,10 +32,6 @@ function grid_search(model, version, box, grid_size;
 
         println("Fitting subject $subj")
         trials = prepare_trials(Table(data); dt=.025)
-        filter!(trials) do t
-            # this can happen due to rounding error
-            t.rt <= max_rt(t)
-        end
 
         ibs_kws = (;ε, tol, repeats, min_multiplier)
         results = @showprogress pmap(candidates) do m
@@ -50,13 +46,14 @@ end
 # %% --------
 
 box = Box(
-    base_precision = (.005, .2, :log),
-    attention_factor = (0, 2),
-    cost = (.001, .003),
-    risk_aversion = (0, .2),
+    base_precision = (.1, 1, :log),
+    # attention_factor = (0, 2),
+    cost = (.05, .5, :log),
+    # risk_aversion = 0.,
+    # risk_aversion = (0, .2),
 )
-grid_search(BDDM, "v2", box, 10; repeats=100, ε=.05, min_multiplier=1)
 
+grid_search(BDDM, "v3", box, 10; repeats=10, ε=.05, min_multiplier=1.2)
 
 
 # %% ==================== OLD ====================
