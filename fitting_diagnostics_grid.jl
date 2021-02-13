@@ -1,5 +1,4 @@
 include("figure.jl")
-import Missings
 # %% --------
 
 function plot_marginals(run_name)
@@ -32,4 +31,18 @@ function plot_marginals(run_name)
 end
 
 # plot_marginals("addm/grid/v9")
-plot_marginals("bddm/grid/v2")
+plot_marginals("bddm/grid/v4")
+
+# %% --------
+subject = 1064
+tmp_path = "tmp/bddm/grid/v4/"
+
+@unpack box, results, chance, ibs_kws, trials = deserialize("$tmp_path/$subject");
+
+
+m = BDDM(;keymax(getfield.(results, :logp))...)
+ibs_loglike(m, trials[1:2:end]; ibs_kws...).logp
+ibs_loglike(m, trials[2:2:end]; ibs_kws...).logp
+serialize("tmp/good_model", m)
+
+# %% --------
