@@ -7,9 +7,9 @@ using Parameters
 @with_kw struct BDDM
     N::Int = 2                            # number of items
     base_precision::Float64 = 0.3         # precision per second of attended item with confidence=1
-    attention_factor::Float64 = 0.9        # down-weighting of precision for unattended item (less than 1)
-    cost::Float64 = 0.1                  # cost per second
-    risk_aversion::Float64 = 0.2           # scales penalty for variance of chosen item
+    attention_factor::Float64 = 1.       # down-weighting of precision for unattended item (less than 1)
+    cost::Float64 = 0.1                   # cost per second
+    risk_aversion::Float64 = 0            # scales penalty for variance of chosen item
     confidence_slope::Float64 = 0.        # how much does confidence increase your precision?
     over_confidence::Float64 = 0.         # treat observations as though they were more or less noisy 
     over_confidence_slope::Float64 = 0.   # treat observations as though they were more or less noisy 

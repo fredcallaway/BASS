@@ -32,11 +32,15 @@ end
 
 # %% ==================== likelihood ====================
 
-trials = prepare_trials(all_data; dt=.025);
 subj = first(unique(t.subject for t in trials))
 subj_trials = filter(t->t.subject == subj, trials);
-
-m = BDDM()
+sample_choice_rt(m, subj_trials[1], .05)
+# m = BDDM()
+# %% --------
+m = deserialize("tmp/good_model")
+m = mutate(m, base_precision=40m.base_precision, cost=m.cost)
+average_precision(m, t)
+# %% --------
 
 i = findfirst(trials) do t
     t.value[1] == t.value[2] && t.value[1] < -1

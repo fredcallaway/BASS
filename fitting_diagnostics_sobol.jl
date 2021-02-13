@@ -91,12 +91,16 @@ end
 # runpath = "tmp/bddm/sobol/v1/"
 # subjects = readdir(runpath)
 # path = path * subjects[1]
-path = "tmp/bddm/sobol/v4/1064"
-@unpack box, xs, results, chance = deserialize(path);
-ibs_kws = ( ε=.05, tol=0, repeats=50, min_multiplier=1.2)
+@unpack box, xs, results, chance, ibs_kws, trials = deserialize("tmp/bddm/sobol/v5/1064");
 R = invert(results)
 nll = -R.logp .|> fillmissing(-chance * ibs_kws.min_multiplier)
 nll_var = R.var .|> fillmissing(20.)
+
+function true_nll(x)
+    m = BDDM(;box(x)...)
+    -ibs_loglike(m, trials[1:2:end]; ibs_kws...).logp
+end
+
 
 # %% ==================== Empirical minimum ====================
 
@@ -107,6 +111,8 @@ print(xs[top][1])
 i = argmin(nll)
 emp_x, emp_y = xs[i], nll[i]
 
+BDDM(;box(emp_x)...)
+# true_nll(emp_x)
 # %% ==================== GP minimum ====================
 
 using Distributions
@@ -122,15 +128,6 @@ end
 
 model_x, model_y = minimize(restarts=100) do x
     predict_nll(x, 0.95)  # robustness -- look for minima with low variance
-end
-
-# %% ==================== True NLL ====================
-
-data = filter(d->d.subject == 1064, all_data)
-trials = prepare_trials(data; dt=.025)
-function true_nll(x)
-    m = BDDM(;box(x)...)
-    ibs_loglike(m, trials[1:2:end]; ibs_kws...).logp
 end
 
 true_nll(model_x)
@@ -160,7 +157,8 @@ simple_marginals = map(1:n_free(box)) do i
     end
 end
 
-
+@show true_nll(emp_x)
+@show true_nll(model_x)
 
 
 # %% --------

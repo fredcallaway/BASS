@@ -11,16 +11,9 @@ end
 using ProgressMeter
 using Sobol
 using SplitApplyCombine
+
+
 # %% --------
-
-
-box = Box(
-    base_precision = (.005, .2, :log),
-    attention_factor = (0, 2),
-    cost = (.001, .003),
-    risk_aversion = (0, .2),
-)
-
 data = group(d->d.subject, all_data) |> first
 trials = prepare_trials(Table(data); dt=.025)
 m = BDDM()
@@ -29,14 +22,14 @@ m = BDDM()
 # %% --------
 
 function sobol_search(model, version, box, N; data=all_data,
-        ε=.01, tol=0, repeats=10, min_multiplier=1.2)
+        ε=.05, tol=0, repeats=10, min_multiplier=1.2)
     path = "tmp/$(lowercase(string(model)))/sobol/$version"
     println("Writing results to $path")
     mkpath(path)
     
     xs = Iterators.take(SobolSeq(n_free(box)), N) |> collect
 
-    map(pairs(group(d->d.subject, all_data))) do (subj, data)
+    map(pairs(group(d->d.subject, all_data))) do (subj, subj_data)
         out = "$path/$subj"
         if isfile(out)
             println("$out already exists")
@@ -60,6 +53,17 @@ function sobol_search(model, version, box, N; data=all_data,
     end
 end
 
+# %% --------
+box = Box(
+    base_precision = (.01, 2, :log),
+    attention_factor = (0, 2),
+    cost = (.01, .1, :log),
+    confidence_slope = (0, 1),
+    prior_mean = (-1, 1),
+    # risk_aversion = (0, .3),
+)
+
+sobol_search(BDDM, "v6", box, 5000, repeats=10)
 
 # %% --------
 xs = Iterators.take(SobolSeq(n_free(box)), 1000) |> collect
@@ -69,8 +73,8 @@ results = @showprogress pmap(xs) do x
 end
 subj = data[1].subject
 chance = chance_loglike(trials[1:2:end]; tol=0)
-mkpath("tmp/bddm/sobol/v4")
-serialize("tmp/bddm/sobol/v4/$subj", (;box, trials, results, chance, ibs_kws))
+mkpath("tmp/bddm/sobol/v5")
+serialize("tmp/bddm/sobol/v5/$subj", (;box, trials, results, chance, ibs_kws))
 
 # %% --------
 X = invert(xs[partialsortperm(nll, 1:100)])

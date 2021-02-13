@@ -118,6 +118,9 @@ end
 keymax(X::KeyedArray) = (; (d=>x[i] for (d, x, i) in zip(dimnames(X), axiskeys(X), argmax(X).I))...)
 keymax(x::KeyedArray{<:Real, 1}) = axiskeys(x, 1)[argmax(x)]
 
+keymin(X::KeyedArray) = (; (d=>x[i] for (d, x, i) in zip(dimnames(X), axiskeys(X), argmin(X).I))...)
+keymin(x::KeyedArray{<:Real, 1}) = axiskeys(x, 1)[argmin(x)]
+
 Base.dropdims(idx::Union{Symbol,Int}...) = X -> dropdims(X, dims=idx)
 
 

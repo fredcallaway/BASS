@@ -46,14 +46,14 @@ end
 # %% --------
 
 box = Box(
-    base_precision = (.1, 1, :log),
+    base_precision = (.1, 5, :log),
     # attention_factor = (0, 2),
-    cost = (.05, .5, :log),
+    cost = (.01, .1, :log),
     # risk_aversion = 0.,
     # risk_aversion = (0, .2),
 )
 
-grid_search(BDDM, "v3", box, 10; repeats=10, ε=.05, min_multiplier=1.2)
+grid_search(BDDM, "v4", box, 10; repeats=10, ε=.05, min_multiplier=1.2)
 
 
 # %% ==================== OLD ====================
