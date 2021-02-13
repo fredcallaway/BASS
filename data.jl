@@ -55,8 +55,12 @@ end
 
 function prepare_trials(data; dt=.01, normalize_value=true)
     μ, σ = normalize_value ? juxt(mean, std)(flatten(data.value)) : (0, 1)
-    map(data) do d
+    trials = map(data) do d
         HumanTrial(d; μ, σ, dt)
+    end
+    filter!(trials) do t
+        # this can happen due to rounding error
+        t.rt <= max_rt(t)
     end
 end
 
