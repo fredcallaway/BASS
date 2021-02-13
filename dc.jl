@@ -32,7 +32,7 @@ function voc_dc(m, s, t)
     # and we assume you can't take more than 100
     λ_avg = average_precision(m, t)
     res = optimize(1, 100, GoldenSection(), abs_tol=1) do n  # note abs_tol is on the number of samples
-        -voc_n(m, s, n, λ_avg)
+        -voc_n(m, s, n, λ_avg, t.dt)
     end
     -res.minimum
 end
@@ -40,11 +40,11 @@ end
 "Short-circuit voc"
 function voc_is_positive(pol::Policy, s, t, offset)
     @unpack λ_avg, m = pol
-    voc_n(m, s, 1, λ_avg) > 0 && return true
+    voc_n(m, s, 1, λ_avg, t.dt) > 0 && return true
     # NOTE: the target keyword relies on my fork of Optim.jl
     # https://github.com/fredcallaway/Optim.jl/
     res = optimize(1., 100., abs_tol=1., target=offset) do n
-        -voc_n(m, s, n, λ_avg)
+        -voc_n(m, s, n, λ_avg, t.dt)
     end
     # Slower short circuit, works with stable Optim.jl
     # res = optimize(1, 100, abs_tol=1, callback = x-> x.value < offset) do n
@@ -56,9 +56,9 @@ end
 
 "Average precision of samples for each item (averaging out attention)."
 function average_precision(m::BDDM, t::Trial)
-    attention_proportion = mean.(t.presentation_times) 
+    attention_proportion = mean.(t.presentation_times)
     attention_proportion ./= sum(attention_proportion)
-    base = m.base_precision .* t.confidence 
+    base = base_precision(m, t)
     @. base * attention_proportion + m.attention_factor * base * (1 - attention_proportion)
 end
 
@@ -106,7 +106,7 @@ function voi_n(m::BDDM, s::State, n::Real, λ_avg::Vector)
 end
 
 "Value of computation from n more samples."
-voc_n(m::BDDM, s::State, n::Real, λ_avg::Vector) = voi_n(m, s, n, λ_avg) - m.cost * n
+voc_n(m::BDDM, s::State, n::Real, λ_avg::Vector, dt::Float64) = voi_n(m, s, n, λ_avg) - dt * m.cost * n
 
 
 # NOT CORRECT

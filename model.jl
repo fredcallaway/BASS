@@ -6,10 +6,10 @@ using Parameters
 "Bayesian Drift Diffusion Model"
 @with_kw struct BDDM
     N::Int = 2                            # number of items
-    base_precision::Float64 = .05         # precision of sample of attended item with confidence=1
-    attention_factor::Float64 = .1        # down-weighting of precision for unattended item (less than 1)
-    cost::Float64 = 1e-3                  # cost per sample
-    risk_aversion::Float64 = 0.           # scales penalty for variance of chosen item
+    base_precision::Float64 = 0.3         # precision per second of attended item with confidence=1
+    attention_factor::Float64 = 0.9        # down-weighting of precision for unattended item (less than 1)
+    cost::Float64 = 0.1                  # cost per second
+    risk_aversion::Float64 = 0.2           # scales penalty for variance of chosen item
     confidence_slope::Float64 = 0.        # how much does confidence increase your precision?
     over_confidence::Float64 = 0.         # treat observations as though they were more or less noisy 
     over_confidence_slope::Float64 = 0.   # treat observations as though they were more or less noisy 
@@ -17,6 +17,11 @@ using Parameters
     prior_precision::Float64 = 1.
     tmp::Vector{Float64} = zeros(N) # implementation detail, for memory-efficiency
 end
+
+# .025 -> .0075
+
+# base_precision = 0.3
+# cost = 0.1
 
 
 "The state of the BDDM."
@@ -45,7 +50,15 @@ struct SimTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
     presentation_times::Vector{Distribution}
+    dt::Float64
 end
+function SimTrial(;value=randn(2), 
+                   confidence=5rand(2),
+                   presentation_times = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
+                   dt = 0.025)
+    SimTrial(value, confidence, presentation_times, dt)
+end
+
 SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_times)
 
 # ---------- Updating ---------- #
@@ -103,7 +116,7 @@ function make_switches(trial::SimTrial)
     switching = trial.presentation_times |> enumerate |> Iterators.cycle |> Iterators.Stateful
     function switch()
         i, d = first(switching)
-        t = max(1, round(Int, rand(d)))
+        t = max(1, round(Int, rand(d) / trial.dt))
         i, t
     end
 end
@@ -124,21 +137,28 @@ abstract type Policy end
 "A Policy endorsed by Young Gunz."
 struct CantStopWontStop <: Policy end
 stop(pol::CantStopWontStop, s::State, t::Trial) = false
+initialize!(pol::CantStopWontStop, t::Trial) = nothing
 
 # ---------- Simulation ---------- #
 
+"Precision of one sample, including confidence but nott attention"
+function base_precision(m, t)
+    @. t.dt * (m.base_precision + m.confidence_slope * t.confidence)
+end
+
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save_states=false)
+function simulate(m::BDDM, pol::Policy; t=SimTrial(), s=State(m), max_step=cld(20, t.dt), save_states=false)
     initialize!(pol, t)
     switch = make_switches(t)
     attended_item, time_to_switch = switch()
     timeout = false
     first_fix = true
-    rt = 0
+    time_step = 0
     states = State[]
     presentation_times = zeros(Int, length(t.value))
 
-    objective_precision = @. m.base_precision + m.confidence_slope * t.confidence
+    objective_precision = base_precision(m, t)
+
     # objective_precision = @. m.base_precision * t.confidence ^ m.confidence_slope
     # subjective_precision = @. (m.base_precision + m.over_confidence_intercept) + 
                                # (m.confidence_slope + m.over_confidence_slope) * t.confidence
@@ -149,7 +169,7 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
 
     while true
         save_states && push!(states, copy(s))
-        rt += 1
+        time_step += 1
         if time_to_switch == 0
             attended_item, time_to_switch = switch()
             first_fix = false
@@ -162,15 +182,15 @@ function simulate(m::BDDM, pol::Policy; t=Trial(), s=State(m), max_rt=1000, save
         presentation_times[attended_item] += 1
         time_to_switch -= 1
         stop(pol, s, t) && break
-        if rt == max_rt
+        if time_step == max_step
             timeout = true
             break
         end
     end
     value, choice = findmax(subjective_values(m, s))
-    reward = value - rt * m.cost
+    reward = value - time_step * t.dt * m.cost
     push!(states, s)
-    (;choice, rt, reward, states, presentation_times, timeout)
+    (;choice, time_step, reward, states, presentation_times, timeout)
 end
 
 simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_rt=t.rt, kws...)
