@@ -6,6 +6,7 @@ include("addm.jl")
 include("dc.jl")
 include("data.jl")
 include("figure.jl")
+include("likelihood.jl")
 using Printf
 using Query
 # %% ==================== diffusion ====================
@@ -22,7 +23,8 @@ figure("diffusion") do
     m = BDDM()
     pol = CantStopWontStop()
     plots = map(1:9) do i
-        sim = simulate(m, pol; save_states=true, max_rt=200)
+        t = SimTrial(dt=.1)
+        sim = simulate(m, pol; t, save_states=true)
         plot_sim(sim)
     end
     plot(plots...)
@@ -30,11 +32,11 @@ end
 
 # %% ==================== likelihood ====================
 
-trials = prepare_trials(all_data; dt=.01);
+trials = prepare_trials(all_data; dt=.025);
 subj = first(unique(t.subject for t in trials))
 subj_trials = filter(t->t.subject == subj, trials);
 
-m = BDDM(cost=2.3e-4, risk_aversion=6e-2, base_precision=.01, attention_factor=.8)
+m = BDDM()
 
 i = findfirst(trials) do t
     t.value[1] == t.value[2] && t.value[1] < -1
