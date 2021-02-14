@@ -7,7 +7,7 @@ using Parameters
 @with_kw struct BDDM
     N::Int = 2                            # number of items
     base_precision::Float64 = 0.3         # precision per second of attended item with confidence=1
-    attention_factor::Float64 = 1.       # down-weighting of precision for unattended item (less than 1)
+    attention_factor::Float64 = 1.        # down-weighting of precision for unattended item (less than 1)
     cost::Float64 = 0.1                   # cost per second
     risk_aversion::Float64 = 0            # scales penalty for variance of chosen item
     confidence_slope::Float64 = 0.        # how much does confidence increase your precision?
@@ -53,7 +53,7 @@ struct SimTrial <: Trial
     dt::Float64
 end
 function SimTrial(;value=randn(2), 
-                   confidence=5rand(2),
+                   confidence=rand(1.:5, 2),
                    presentation_times = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
                    dt = 0.025)
     SimTrial(value, confidence, presentation_times, dt)
@@ -194,7 +194,8 @@ function simulate(m::BDDM, pol::Policy; t=SimTrial(), s=State(m), max_step=cld(2
 end
 
 simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
-simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, DirectedCognition(m), t; kws...)
+simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
+simulate(m::BDDM, t::SimTrial; kws...) = simulate(m, DirectedCognition(m); t, kws...)
 
 # ---------- Miscellaneous ---------- #
 

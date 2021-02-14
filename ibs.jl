@@ -42,7 +42,7 @@ function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
                 end
             end
             if converged_logp + unconverged_logp < min_logp
-                return (logp=min_logp, std=missing, converged=false)
+                return (logp=min_logp, std=missing, converged=false, n_call)
             end
         end
         total_logp += converged_logp

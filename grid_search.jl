@@ -34,7 +34,7 @@ function grid_search(model, version, box, grid_size;
         trials = prepare_trials(Table(data); dt=.025)
 
         ibs_kws = (;ε, tol, repeats, min_multiplier)
-        results = @showprogress pmap(candidates) do m
+        results = @showprogress out pmap(candidates) do m
             ibs_loglike(m, trials[1:2:end]; ibs_kws...)
         end
         chance = chance_loglike(trials[1:2:end]; ibs_kws.tol)

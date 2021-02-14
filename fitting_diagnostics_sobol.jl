@@ -5,6 +5,7 @@ using SplitApplyCombine
 using Statistics
 using Optim
 using Sobol
+using CSV
 
 include("utils.jl")
 include("model.jl")
@@ -13,13 +14,16 @@ include("data.jl")
 include("likelihood.jl")
 include("ibs.jl")
 include("box.jl")
+include("figure.jl")
 
-function fit_gp(xs, nll, nll_var; gp_mean = mean(nll))
+
+function fit_gp(xs, nll, nll_std; gp_mean = mean(nll))
     X = reduce(hcat, xs)
     gp_mean = MeanConst(gp_mean)
     kernel = SEArd(ones(size(X, 1)), -3.)
 
-    log_noise = @.(log(√(nll_var)))
+    log_noise = log.(nll_std)
+
     train = eachindex(nll)[1:2:end]
     test = eachindex(nll)[2:2:end]
 
@@ -31,7 +35,7 @@ function fit_gp(xs, nll, nll_var; gp_mean = mean(nll))
     # mae(preds) = mean(abs.(preds .- nll[test]))
     println("RMSE on held out data: ", rmse(yhat) |> round2)
     println("RMSE of mean prediction: ", rmse(mean(nll[train])) |> round2)
-    println("RMSE of perfect prediction: ", √mean(nll_var) |> round2)
+    println("RMSE of perfect prediction: ", √mean(nll_std) |> round2)
     println("RMSE scaled by prediction variance: ", 
         mean(((yhat .- nll[test]) ./ .√yvar).^2) |> round2)
     
@@ -88,36 +92,77 @@ end
 
 
 # %% ==================== Load results ====================
-# runpath = "tmp/bddm/sobol/v1/"
-# subjects = readdir(runpath)
+run_name = "bddm/sobol/v7/"
+subjects = parse.(Int, readdir(runpath))
+subject = first(subjects)
 # path = path * subjects[1]
-@unpack box, xs, results, chance, ibs_kws, trials = deserialize("tmp/bddm/sobol/v5/1064");
-R = invert(results)
-nll = -R.logp .|> fillmissing(-chance * ibs_kws.min_multiplier)
-nll_var = R.var .|> fillmissing(20.)
+@unpack box, xs, results, chance, ibs_kws, trials, default = deserialize("tmp/$run_name/$subject");
 
-function true_nll(x)
+nll = [-r.logp for r in results]
+nll_std = [r.std for r in results] .|> fillmissing(20.)
+
+function true_nll(x; kws...)
     m = BDDM(;box(x)...)
-    -ibs_loglike(m, trials[1:2:end]; ibs_kws...).logp
+    -ibs_loglike(m, trials[1:2:end]; ibs_kws..., kws...).logp
 end
 
 
 # %% ==================== Empirical minimum ====================
 
-top = partialsortperm(nll, 1:100)
-nll[top]
-print(xs[top][1])
-
 i = argmin(nll)
 emp_x, emp_y = xs[i], nll[i]
 
-BDDM(;box(emp_x)...)
-# true_nll(emp_x)
+@show emp_y
+@show true_nll(emp_x)
+
+# %% ==================== Plot "samples" ====================
+top = partialsortperm(nll, 1:100)
+samples = map(pairs(box.dims), xs[top] |> invert) do (name, d), x
+    name => x
+end |> Dict
+
+params = collect(keys(box.dims))
+
+# %% --------
+figure()
+    plot_grid(params, params) do vx, vy
+        scatter(samples[vx], samples[vy])
+        plot!(xlim=(0,1), ylim=(0,1), xlabel=string(vx), ylabel=string(vy))
+    end
+end
+
+# %% --------
+figure() do
+    vx = :base_precision
+    vy = :confidence_slope
+    scatter(samples[vx], samples[vy], smooth=true)
+    plot!(xlim=(0,1), ylim=(0,1), xlabel=string(vx), ylabel=string(vy))
+
+end
+
+# %% --------
+using DataFrames
+using RCall
+df = DataFrame(samples)
+
+# %% --------
+R"""
+round(cor($df), 2)
+"""
+
 # %% ==================== GP minimum ====================
 
 using Distributions
 
-gp = fit_gp(xs, nll, nll_var; gp_mean=chance)
+# good = findall(nll_std .!= 20)
+order = sortperm(nll)
+filter!(order) do i
+    nll_std[i] < 20
+end
+
+# to_fit = [order[1:1000]; order[1001:10:end]]
+to_fit = order[1:1000]
+gp = fit_gp(xs[to_fit], nll[to_fit], nll_std[to_fit]; gp_mean=-ibs_kws.min_multiplier * chance)
 
 predict_nll(x) = predict_f(gp, reshape(x, n_free(box), 1))[1][1]
 
@@ -126,59 +171,116 @@ function predict_nll(x, quant)
     quantile(Normal(y[1], yv[1]), quant)
 end
 
-model_x, model_y = minimize(restarts=100) do x
-    predict_nll(x, 0.95)  # robustness -- look for minima with low variance
+function predict_nll_meanstd(x)
+    y, yv = predict_f(gp, reshape(x, n_free(box), 1))
+    y[1], √yv[1]
 end
 
-true_nll(model_x)
+model_x, model_y = minimize(restarts=100) do x
+    predict_nll(x, 0.9)  # robustness -- look for minima with low variance
+end
 
+@show model_y
+true_model_y = @show true_nll(model_x)
+true_emp_y = @show true_nll(emp_x)
+
+
+best_x = if true_model_y < true_emp_y
+    println("Using model's best point")
+    model_x
+else
+    println("Using empirical best point")
+    emp_x
+end
+
+# %% --------
+m = BDDM(;box(best_x)...)
+
+mapmany(trials[1:end]) do t
+    map(1:1000) do i
+        sim = simulate(m, t)
+        pt1, pt2 = sim.presentation_times .* t.dt
+        val1, val2 = t.value
+        conf1, conf2 = t.confidence
+        m1, m2 = mean.(t.presentation_times)
+        order = m1 > m2 ? :longfirst : :shortfirst
+        (;t.subject, val1, val2, conf1, conf2, pt1, pt2, order, sim.choice)
+    end
+end |> CSV.write("results/v7-1064.csv")
+
+# %% --------
+map(1:10000) do i
+    t = SimTrial()
+    sim = simulate(m, t)
+    pt1, pt2 = sim.presentation_times .* t.dt
+    val1, val2 = t.value
+    conf1, conf2 = t.confidence
+    m1, m2 = mean.(t.presentation_times)
+    order = m1 > m2 ? :longfirst : :shortfirst
+    (;subject, val1, val2, conf1, conf2, pt1, pt2, order, sim.choice)
+end |> CSV.write("results/v7-1064-unyoked.csv")
 
 
 
 # %% ==================== Plot the marginals ====================
 
-function plot_marginals(xx, x_best, marginals)
+function plot_marginals(xx, best_x, marginals)
     ps = map(collect(pairs(box.dims)), enumerate(marginals)) do (name, d), (i, x)
         maybelog = :log in d ? (:log,) : ()
         plot(rescale(d, xx), x, xaxis=(string(name), maybelog...))
         hline!([-chance, -chance*1.2], color=:gray, ls=:dash)
-        vline!([rescale(d, x_best[i])], c=:red)
+        vline!([rescale(d, best_x[i])], c=:red)
+    end
+    plot(ps..., size=(600, 600))
+end
+
+function plot_marginals_meanstd(xx, best_x, marginals)
+    ps = map(collect(pairs(box.dims)), enumerate(marginals)) do (name, d), (i, x)
+        y, ystd = invert(x)
+        maybelog = :log in d ? (:log,) : ()
+        plot(rescale(d, xx), y, xaxis=(string(name), maybelog...), ribbon=ystd)
+        hline!([-chance, -chance*1.2], color=:gray, ls=:dash)
+        vline!([rescale(d, best_x[i])], c=:red)
     end
     plot(ps..., size=(600, 600))
 end
 
 xx = 0:.01:1
-x_best = model_x
 simple_marginals = map(1:n_free(box)) do i
-    x = copy(x_best)
+    x = copy(best_x)
     map(xx) do x_target
         x[i] = x_target
-        predict_nll(x)
+        predict_nll_meanstd(x)
     end
 end
 
-@show true_nll(emp_x)
-@show true_nll(model_x)
 
+figpath = "figs/" * replace(replace(run_name, "sobol/" => ""), "/" => "-") * subject
+
+figure("$figpath-simple_marginal") do
+    plot_marginals_meanstd(xx, best_x, simple_marginals)
+end
 
 # %% --------
 xx = 0:0.05:1
 
 opt_marginals = map(1:n_free(box)) do i
-    map(xx) do x_target
-        condition = fill(missing, 4)
-        # # LBFGS(), autodiff=:forward
-        # res = optimize(0, 1) do xi
-        #     x = copy(x_best)
-        #     x[i] = xi
-        #     predict_nll(x, 0.95)
-        # end
-        # res.minimum
+    @showprogress map(xx) do x_target
+        condition = Vector{Union{Float64,Missing}}(fill(missing, n_free(box), ))
+        condition[i] = x_target
+        minimize(condition) do x
+            predict_nll(x, 0.95)
+        end
     end
 end
 
+# %% --------
+y = map(opt_marginals) do xs
+    [x[2] for x in xs]
+end
+# %% --------
 figure() do
-    plot_marginals(xx, x_best, opt_marginals)
+    plot_marginals(xx, best_x, y)
 end
 
 # # %% --------
