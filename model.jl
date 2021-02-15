@@ -59,7 +59,7 @@ function SimTrial(;value=randn(2),
     SimTrial(value, confidence, presentation_times, dt)
 end
 
-SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_times)
+SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_times, t.dt)
 
 # ---------- Updating ---------- #
 
