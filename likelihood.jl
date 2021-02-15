@@ -1,7 +1,4 @@
-# include("utils.jl")
-# include("model.jl")
-# include("dc.jl")
-# include("data.jl")
+include("ibs.jl")
 
 MAX_RT = 5
 max_rt(t::Trial) = Int(MAX_RT / t.dt)

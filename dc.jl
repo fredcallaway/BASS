@@ -56,7 +56,7 @@ end
 
 "Average precision of samples for each item (averaging out attention)."
 function average_precision(m::BDDM, t::Trial)
-    attention_proportion = mean.(t.presentation_times)
+    attention_proportion = mean.(t.presentation_distributions)
     attention_proportion ./= sum(attention_proportion)
     base = base_precision(m, t)
     @. base * attention_proportion + m.attention_factor * base * (1 - attention_proportion)

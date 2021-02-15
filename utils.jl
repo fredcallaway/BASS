@@ -1,5 +1,8 @@
 using DataStructures: OrderedDict
 using NamedTupleTools
+using Statistics
+using StatsBase
+using Distributions
 
 function mutate(x::T; kws...) where T
     for field in keys(kws)

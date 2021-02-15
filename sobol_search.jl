@@ -1,4 +1,4 @@
-@everywhere begin
+@time @everywhere begin
     include("utils.jl")
     include("model.jl")
     include("dc.jl")
@@ -14,7 +14,7 @@ using SplitApplyCombine
 
 # %% --------
 
-function sobol_search(model, version, box, N; data=all_data, dt=.025,
+function sobol_search(model, version, box, N; data=load_human_data(), dt=.025,
         ε=.05, tol=0, repeats=10, min_multiplier=1.2)
     path = "tmp/$(lowercase(string(model)))/sobol/$version"
     println("Writing results to $path")
@@ -22,7 +22,7 @@ function sobol_search(model, version, box, N; data=all_data, dt=.025,
     
     xs = Iterators.take(SobolSeq(n_free(box)), N) |> collect
 
-    map(pairs(group(d->d.subject, all_data))) do (subj, subj_data)
+    map(pairs(group(d->d.subject, data))) do (subj, subj_data)
         out = "$path/$subj"
         if isfile(out)
             println("$out already exists")
@@ -55,7 +55,7 @@ box = Box(
     prior_mean = (-1, 1),
 )
 
-sobol_search(BDDM, "v10", box, 5000, repeats=10, dt=.025, tol=1)
+sobol_search(BDDM, "test", box, 5000, repeats=10, dt=.1, tol=4)
 
 
 

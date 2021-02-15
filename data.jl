@@ -2,6 +2,11 @@ using JSON
 using TypedTables
 using SplitApplyCombine
 
+const PRESENTATION_DURATIONS = Dict(
+    :shortfirst => [Normal(.2, .05), Normal(.5, .1)],
+    :longfirst => [Normal(.5, .1), Normal(.2, .05)]
+)
+
 function parse_indpres(x)
     if x isa Real
         return [x]
@@ -22,34 +27,46 @@ function parse_indpres(x)
 end
 
 # %% --------
-all_data = map(open(JSON.parse, "data/Study3Fred.json")) do d
-    presentation_duration = parse_indpres(d["IndPresDur"])
-    avg_first = mean(presentation_duration[1:2:end])
-    avg_second = mean(presentation_duration[2:2:end])
-    (
-        subject = d["SubNum"],
-        value = [d["fstItemV"], d["sndItemVal"]],
-        confidence = Float64[d["fstConfidence"], d["sndConfidence"]],
-        presentation_duration,
-        nfix = length(presentation_duration),
-        order = avg_first > avg_second ? :longfirst : :shortfirst,
-        choice = d["isFirstChosen"] ? 1 : 2,
-        rt = d["RT"]
-    )
-end  |> skipmissing |> collect |> Vector{NamedTuple} |>  Table
-# %% --------
-function get_presentation_dists(durations, dt)
-    dists = [Normal(.2, .05), Normal(.5, .1)]
-    avg_first = mean(durations[1:2:end])
-    avg_second = mean(durations[2:2:end])
-    avg_first < avg_second ? dists : reverse(dists)
+function load_human_data(path="data/Study3Fred.json")
+    raw_data = open(JSON.parse, path);
+    map(raw_data) do d
+        presentation_duration = parse_indpres(d["IndPresDur"])
+        avg_first = mean(presentation_duration[1:2:end])
+        avg_second = mean(presentation_duration[2:2:end])
+        (
+            subject = d["SubNum"],
+            value = [d["fstItemV"], d["sndItemVal"]],
+            confidence = Float64[d["fstConfidence"], d["sndConfidence"]],
+            presentation_duration,
+            # nfix = length(presentation_duration),
+            order = avg_first > avg_second ? :longfirst : :shortfirst,
+            choice = d["isFirstChosen"] ? 1 : 2,
+            rt = d["RT"]
+        )
+    end  |> skipmissing |> collect |> Vector{NamedTuple} |> Table
+end
+
+"Discretize presentation times while preventing rounding error from accumulating"
+function discretize_presentation_times(durations, dt)
+    # see test in tests.jl
+    out = Int[]
+    err = 0.
+    for d in durations
+        push!(out, Int(d ÷ dt))
+        err += d % dt
+        if err > dt/2
+            out[end] += 1
+            err -= dt
+        end
+    end
+    out
 end
 
 function HumanTrial(d::NamedTuple; μ, σ, dt)
-    presentation_times = get_presentation_dists(d.presentation_duration, dt)
-    real_presentation_times = round.(Int, d.presentation_duration ./ dt)
-    rt = sum(real_presentation_times)
-    HumanTrial((d.value .- μ) ./ σ, d.confidence, presentation_times, 
+    presentation_distributions = PRESENTATION_DURATIONS[d.order]
+    real_presentation_times = discretize_presentation_times(d.presentation_duration, dt)
+    rt = sum(real_presentation_times)  # discretized
+    HumanTrial((d.value .- μ) ./ σ, d.confidence, presentation_distributions, 
                real_presentation_times, d.subject, d.choice, rt, dt)
 end
 

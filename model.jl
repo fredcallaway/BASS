@@ -38,7 +38,7 @@ abstract type Trial end
 struct HumanTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
-    presentation_times::Vector{Distribution}  # presentation time distribution
+    presentation_distributions::Vector{Distribution}  # presentation time distribution
     real_presentation_times::Vector{Int}  # actual presentation times
     subject::Int
     choice::Int
@@ -49,17 +49,17 @@ end
 struct SimTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
-    presentation_times::Vector{Distribution}
+    presentation_distributions::Vector{Distribution}
     dt::Float64
 end
 function SimTrial(;value=randn(2), 
                    confidence=rand(1.:5, 2),
-                   presentation_times = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
+                   presentation_distributions = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
                    dt = 0.025)
-    SimTrial(value, confidence, presentation_times, dt)
+    SimTrial(value, confidence, presentation_distributions, dt)
 end
 
-SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_times, t.dt)
+SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_distributions, t.dt)
 
 # ---------- Updating ---------- #
 
@@ -112,20 +112,19 @@ function set_attention!(attention::Vector, m::BDDM, attended_item::Int, first_fi
     end
 end
 
-function make_switches(trial::SimTrial)
-    switching = trial.presentation_times |> enumerate |> Iterators.cycle |> Iterators.Stateful
+function make_switches(t::SimTrial)
+    switching = t.presentation_distributions |> enumerate |> Iterators.cycle |> Iterators.Stateful
     function switch()
-        i, d = first(switching)
-        t = max(1, round(Int, rand(d) / trial.dt))
-        i, t
+        item, dist = first(switching)
+        duration = max(1, round(Int, rand(dist) / t.dt))
+        item, duration
     end
 end
 
-function make_switches(trial::HumanTrial)
-    switching = zip(Iterators.cycle(eachindex(trial.value)), trial.real_presentation_times) |> Iterators.Stateful
+function make_switches(t::HumanTrial)
+    switching = zip(Iterators.cycle(eachindex(t.value)), t.real_presentation_times) |> Iterators.Stateful
     function switch()
-        i, t = first(switching)
-        i, t
+        first(switching)
     end
 end
 
@@ -147,7 +146,10 @@ function base_precision(m, t)
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, pol::Policy; t=SimTrial(), s=State(m), max_step=cld(20, t.dt), save_states=false)
+function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), save_states=false)
+    if t isa HumanTrial
+        max_step = min(max_step, t.rt)
+    end
     initialize!(pol, t)
     switch = make_switches(t)
     attended_item, time_to_switch = switch()
@@ -193,9 +195,9 @@ function simulate(m::BDDM, pol::Policy; t=SimTrial(), s=State(m), max_step=cld(2
     (;choice, time_step, reward, states, presentation_times, timeout)
 end
 
-simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
-simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
-simulate(m::BDDM, t::SimTrial; kws...) = simulate(m, DirectedCognition(m); t, kws...)
+# simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
+# simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
+# simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, t; max_step=t.rt, kws...)
 
 # ---------- Miscellaneous ---------- #
 

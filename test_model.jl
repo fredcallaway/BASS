@@ -1,6 +1,7 @@
 include("model.jl")
 include("dc.jl")
 include("utils.jl")
+include("data.jl")
 
 using Test
 using SplitApplyCombine
@@ -27,9 +28,9 @@ end
 
 @testset "precision insensitive to dt" begin
     m = BDDM()
-    presentation_times=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
+    presentation_distributions = [Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
     for i in 1:N_TEST
-        t = SimTrial(;presentation_times)
+        t = SimTrial(;presentation_distributions)
         s1 = simulate(m, CantStopWontStop(); t).states[1]
         t = mutate(t, dt=(0.1 / rand(1:100)))  # must evenly divide 0.2 and 0.5
         s2 = simulate(m, CantStopWontStop(); t).states[1]
@@ -39,9 +40,9 @@ end
 
 @testset "updating makes sense" begin
     m = BDDM()
-    presentation_times=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
+    presentation_distributions = [Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
     for i in N_TEST
-        t = SimTrial(;presentation_times, dt=rand([.1, .2, .3]))
+        t = SimTrial(;presentation_distributions, dt=rand([.1, .2, .3]))
         μ1, μ2 = map(1:10000) do i
             simulate(m, CantStopWontStop(); t).states[1].μ
         end |> invert
@@ -59,12 +60,12 @@ end
 @testset "average_precision" begin
     m = BDDM(attention_factor=0.3, confidence_slope=.1)
     map(1:N_TEST) do i
-        presentation_times=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
-        # presentation_times=[Normal(0.2, 0.1), Normal(0.5, 0.2)]
-        t = SimTrial(;presentation_times)
-        steps_per_cycle = Int(round(sum(mean.(presentation_times)) / t.dt, digits=4))
+        presentation_distributions=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
+        # presentation_distributions=[Normal(0.2, 0.1), Normal(0.5, 0.2)]
+        t = SimTrial(;presentation_distributions)
+        steps_per_cycle = Int(round(sum(mean.(presentation_distributions)) / t.dt, digits=4))
         
-        # t.presentation_times .= Normal.(1 .+ round.(10 * rand(2)), 1e-5 * ones(2))
+        # t.presentation_distributions .= Normal.(1 .+ round.(10 * rand(2)), 1e-5 * ones(2))
         λ_avg = average_precision(m, t)
         max_step = steps_per_cycle * 10
         λ_predicted = ones(2) + λ_avg * max_step
@@ -72,7 +73,7 @@ end
         @test λ_predicted[1] ≈ λ_empirical[1]
 
         missing_precision_from_first_fixation =
-            base_precision(m, t)[2] * mean(presentation_times[1]) * m.attention_factor / t.dt
+            base_precision(m, t)[2] * mean(presentation_distributions[1]) * m.attention_factor / t.dt
 
         @test λ_predicted[2] ≈ λ_empirical[2] + missing_precision_from_first_fixation
     end
@@ -85,10 +86,10 @@ end
 
 # function voc_error(m)
 #     s = sample_state()
-#     presentation_times=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
-#     steps_per_cycle = Int(round(sum(mean.(presentation_times)) / t.dt, digits=4))
+#     presentation_distributions=[Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
+#     steps_per_cycle = Int(round(sum(mean.(presentation_distributions)) / t.dt, digits=4))
 #     n = steps_per_cycle * rand(1:10)
-#     t = SimTrial(;presentation_times)
+#     t = SimTrial(;presentation_distributions)
 
 #     pol = CantStopWontStop()
 #     λ_avg = average_precision(m, t)
