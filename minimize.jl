@@ -17,9 +17,9 @@ function fillmissing(target, repls)
     x
 end
 
-function minimize(f::Function; restarts=20)
+function minimize(f::Function, dim; restarts=20)
     best_val = Inf; best_x = nothing
-    for x0 in Iterators.take(SobolSeq(n_free(box)), restarts)
+    for x0 in Iterators.take(SobolSeq(dim), restarts)
         res = optimize(x0) do x
             f(x)
         end

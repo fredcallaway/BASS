@@ -11,10 +11,12 @@ end
 using ProgressMeter
 using Sobol
 using SplitApplyCombine
+include("run_sobol.jl")
+mkpath("tmp/recovery")
 
-# %% --------
+# %% ==================== Simulate ====================
 
-box = Box(
+sim_box = Box(
     base_precision = (.01, 1),
     attention_factor = (0, 1),
     cost = (.01, .1),
@@ -23,7 +25,7 @@ box = Box(
 )
 
 n_subj = 100
-xs = Iterators.take(SobolSeq(n_free(box)), n_subj) |> collect
+xs = Iterators.take(SobolSeq(n_free(sim_box)), n_subj) |> collect
 
 all_data = load_human_data()
 trial_sets = map(collect(group(d->d.subject, all_data))) do data
@@ -40,22 +42,20 @@ end |> Iterators.cycle  |> (x -> Iterators.take(x, length(xs)))
         (;subject, t.value, t.confidence, presentation_duration, order, sim.choice, rt)
     end
 end
-# %% --------
+
 sim_data = @showprogress "Simulating " map(enumerate(xs), trial_sets) do (subject, x), trials
-    m = BDDM(;box(x)...)
+    m = BDDM(;sim_box(x)...)
     simulate_dataset(m, trials; subject)
 end
 
-T = Table(flatten(sim_data))
-quantile(all_data.rt)
-quantile(T.rt)
+serialize("tmp/recovery/sim_data", sim_data)
 
-# %% --------
-first(trials)
-m = BDDM(base_precision=0, attention_factor = 0.3, confidence_slope=.01, cost=0.01, risk_aversion=1)
-trials = reduce(vcat, Iterators.take(trial_sets, 1))
-T = Table(simulate_dataset(m, trials))
-quantile(T.rt)
+# %% ==================== Fit ====================
 
+run_sobol_ind(BDDM, "recovery/v1", box, 5000, repeats=10, dt=.025, tol=0; data=flatten(sim_data))
+
+
+
+# %% ====================  ====================
 
 

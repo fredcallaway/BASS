@@ -2,10 +2,13 @@ using JSON
 using TypedTables
 using SplitApplyCombine
 
-const PRESENTATION_DURATIONS = Dict(
-    :shortfirst => [Normal(.2, .05), Normal(.5, .1)],
-    :longfirst => [Normal(.5, .1), Normal(.2, .05)]
-)
+
+if !@isdefined PRESENTATION_DURATIONS
+    const PRESENTATION_DURATIONS = Dict(
+        :shortfirst => [Normal(.2, .05), Normal(.5, .1)],
+        :longfirst => [Normal(.5, .1), Normal(.2, .05)]
+    )
+end
 
 function parse_indpres(x)
     if x isa Real
