@@ -146,7 +146,8 @@ function base_precision(m, t)
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), save_states=false)
+function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), 
+                  save_states=false, save_presentation=false)
     if t isa HumanTrial
         max_step = min(max_step, t.rt)
     end
@@ -157,8 +158,7 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     first_fix = true
     time_step = 0
     states = State[]
-    presentation_times = zeros(Int, length(t.value))
-
+    presentation_durations = save_presentation ? [time_to_switch] : nothing
     objective_precision = base_precision(m, t)
 
     # objective_precision = @. m.base_precision * t.confidence ^ m.confidence_slope
@@ -174,6 +174,7 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
         time_step += 1
         if time_to_switch == 0
             attended_item, time_to_switch = switch()
+            save_presentation && push!(presentation_durations, time_to_switch)
             first_fix = false
         end
         set_attention!(attention, m, attended_item, first_fix)
@@ -181,7 +182,6 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
         # @. λ_subjective = subjective_precision * subjective_confidence * attention
         # @. λ_subjective = subjective_precision * subjective_confidence * attention
         update!(m, s, t.value, λ_objective, λ_subjective)
-        presentation_times[attended_item] += 1
         time_to_switch -= 1
         stop(pol, s, t) && break
         if time_step == max_step
@@ -189,10 +189,13 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
             break
         end
     end
+    if save_presentation
+        presentation_durations[end] -= time_to_switch  # remaining fixation time
+    end
     value, choice = findmax(subjective_values(m, s))
     reward = value - time_step * t.dt * m.cost
     push!(states, s)
-    (;choice, time_step, reward, states, presentation_times, timeout)
+    (;choice, time_step, reward, states, presentation_durations, timeout)
 end
 
 # simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)

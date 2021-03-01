@@ -43,9 +43,15 @@ function SobolResult(model, version, subject)
     SobolResult(model, version, subject, trials, ibs_kws, box, X, nll, nll_std)
 end
 
-function true_nll(sr::SobolResult, x; repeats=100, kws...)
+
+function true_nll_meanstd(sr::SobolResult, x; repeats=100, kws...)
     m = sr.model(;sr.box(x)...)
-    -ibs_loglike(m, sr.trials[1:2:end]; sr.ibs_kws..., repeats, kws...).logp
+    res = ibs_loglike(m, sr.trials[1:2:end]; sr.ibs_kws..., repeats, kws...)
+    (-res.logp, res.std)
+end
+
+function true_nll(sr::SobolResult, x; kws...)
+    true_nll_meanstd(sr, x; kws...)[1]
 end
 
 function empirical_minimum(sr::SobolResult; repeats=100, verbose=true)
@@ -85,7 +91,7 @@ function cross_validate_gp(X, nll, nll_std; verbose=false, kws...)
     if verbose
         println("RMSE on held out data: ", rmse(yhat) |> round2)
         println("RMSE of mean prediction: ", rmse(mean(nll[train])) |> round2)
-        println("RMSE of perfect prediction: ", √mean(nll_std) |> round2)
+        println("RMSE of perfect prediction: ", mean(nll_std) |> round2)
         println("RMSE scaled by prediction variance: ", 
             √mean(((yhat .- nll[test]) ./ .√yvar).^2) |> round2)
     end
@@ -135,7 +141,7 @@ end
 function plot_marginals(g::GPSL, x0)
     figure("$(figpath(g.sr))-marginals") do
         xx = 0:.01:1
-        chance = chance_loglike(sr)
+        chance = chance_loglike(g.sr)
         plots = map(enumerate(pairs(g.sr.box.dims))) do (i, (name, d))
             x = copy(x0)
             y, ystd = map(xx) do x_target
@@ -155,8 +161,8 @@ end
 # %% ==================== Main ====================
 
 model = BDDM
-version = "v11"
-subject = "group"
+version = "recovery/v1"
+subject = "1"
 repeats = 1
 opt_points = 1000
 verbose = false
@@ -188,6 +194,7 @@ function process_sobol_result(model, version, subject; repeats=100, opt_points=1
         println("Using empirical best point")
         emp_x
     end
+    plot_marginals(g, best_x)
 
     res = (; emp_x, emp_nll_hat, emp_nll_true, model_x, model_nll_hat, model_nll_true, best_x)
     serialize(resultpath(sr) * "-mle", res)

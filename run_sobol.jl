@@ -1,4 +1,4 @@
-@everywhere 
+@everywhere begin
     include("utils.jl")
     include("model.jl")
     include("dc.jl")

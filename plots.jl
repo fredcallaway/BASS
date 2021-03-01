@@ -24,8 +24,28 @@ figure("diffusion") do
     pol = CantStopWontStop()
     plots = map(1:9) do i
         t = SimTrial(dt=.1)
-        sim = simulate(m, pol; t, save_states=true)
+        sim = simulate(m, t; pol, save_states=true)
         plot_sim(sim)
+    end
+    plot(plots...)
+end
+
+# %% ====================  ====================
+
+figure("diffusion") do
+    m = BDDM(cost=.001, base_precision=.01)
+    pol = DirectedCognition(m)
+    plots = map(1:9) do i
+        dt = .01
+        t = SimTrial(;dt, value=[-1, 1])
+        sim = simulate(m, t; pol, save_states=true)
+        sim.time_step * dt
+        μs, λs = map(sim.states) do s
+            s.μ, s.λ
+        end |> invert .|> combinedims
+
+        plot(collect((0:sim.time_step)) .* dt, μs', ribbon=λs' .^ -0.5; fillalpha=0.2,
+             xaxis=("", [], ), xlim=(0, 10), yaxis=("", [],), framestyle = :origin)
     end
     plot(plots...)
 end

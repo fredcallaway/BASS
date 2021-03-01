@@ -10,9 +10,15 @@ function get_analytic(t, s, max_step)
     end
 end
 
+"Samples a Trial with fixed confidence and values conditional on the DDM state"
+function resample_values(t::Trial, s::State)
+    value = @. s.μ + (s.λ ^ -0.5) * $randn(2)
+    mutate(t, value=value)
+end
+
 function get_empirical(t, s, max_step; N=10000)
     tr = N \ mapreduce(+, 1:N) do i
-        sim = simulate(m, pol; t=resample_values(t, s), s=deepcopy(s), max_step, save_states=true)
+        sim = simulate(m, resample_values(t, s); pol, s=deepcopy(s), max_step, save_states=true)
         map(sim.states) do ss
             term_reward(m, ss)
         end
@@ -30,18 +36,17 @@ function plot_comparison!(t, s)
 end
 
 figure() do
-    presentation_times = [Normal(0.025, 1e-10), Normal(0.025, 1e-10)]
-    t = SimTrial(;presentation_times)
+    presentation_distributions = [Normal(0.025, 1e-10), Normal(0.025, 1e-10)]
+    t = SimTrial(;presentation_distributions, dt=.1)
     s = State(m)
     plot_comparison!(t, s)
     plot!(xlabel="Time steps", ylabel="Reward")
 end
 
-
 figure() do 
     ps = map(1:9) do i
         t = SimTrial()
-        steps_per_cycle = Int(round(sum(mean.(presentation_times)) / t.dt, digits=4))
+        steps_per_cycle = Int(round(sum(mean.(presentation_distributions)) / t.dt, digits=4))
         s = simulate(m, pol; t, max_step=steps_per_cycle).states[1]    
         plot()
         plot_comparison!(t, s)

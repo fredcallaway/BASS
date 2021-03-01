@@ -79,6 +79,17 @@ end
     end
 end
 
+all_data = load_human_data()
+all_trials = prepare_trials(all_data)
+
+@testset "presentation durations" begin
+    m = BDDM()
+    for t in all_trials
+        sim = simulate(m, t; pol=CantStopWontStop(), save_presentation=true)
+        @test sim.presentation_durations == t.real_presentation_times
+    end
+end
+
 
 # These tests don't work because the approximation isn't perfect
 # and it's really noisy: See plot_voc.jl for a visual confirmation
