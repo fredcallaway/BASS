@@ -25,16 +25,19 @@ sim_box = Box(
     prior_mean = (-2, 0),
 )
 
-n_subj = 1000
-n_experiment = 5
+n_subj = 20
+n_trial = 5000
+dt = .1
 
 xs = Iterators.take(SobolSeq(n_free(sim_box)), n_subj) |> collect
 
-all_data = load_human_data()
-
-trial_sets = map(collect(group(d->d.subject, all_data))) do data
-    SimTrial.(prepare_trials(Table(data), dt=.1))
-end |> Iterators.cycle  |> (x -> Iterators.take(x, length(xs)))
+trial_sets = map([1]) do data
+    [SimTrial(; dt) for i in 1:n_trial]
+end |> Iterators.cycle |> (x -> Iterators.take(x, length(xs)))
+# all_data = load_human_data()
+# trial_sets = map(collect(group(d->d.subject, all_data))) do data
+#     SimTrial.(prepare_trials(Table(data), dt=.1))
+# end |> Iterators.cycle  |> (x -> Iterators.take(x, length(xs)))
 
 function simulate_dataset(m, trials; subject=0)
     map(trials) do t
@@ -52,8 +55,8 @@ sim_data = @showprogress "Simulating " map(enumerate(xs), trial_sets) do (subjec
     simulate_dataset(m, trials; subject)
 end
 
+# %% ==================== Check summary statistics ====================
 
-# %% ==================== Filter ====================
 function summarize(t::NamedTuple)
     vd = t.value[1] - t.value[2]
     choose_best = 
@@ -74,19 +77,28 @@ end
 
 human_sum = summarize(all_data)
 model_sum = map(summarize, sim_data) |> Table
-Table(Table(subject=eachindex(sim_data)), Table(sim_box.(xs)), model_sum) |> CSV.write("tmp/qualitative.csv")
+
+M = Table(Table(subject=eachindex(sim_data)), Table(sim_box.(xs)), model_sum)
+M |> CSV.write("tmp/qualitative.csv")
 Table([human_sum]) |> CSV.write("tmp/qualitative_human.csv")
 
+convert(Dict, map(quantile, columns(model_sum)))
 
+# %% --------
+trials = first(trial_sets);
+x = xs[4]
+m = BDDM(;sim_box(x)...)
+summarize(simulate_dataset(m, trials; subject))
+summarize(simulate_dataset(mutate(m; base_precision=100.), trials; subject))
 
 # %% ==================== Sobol search ====================
-version = "recovery/v3"
+version = "recovery/v4"
 run_sobol_ind(BDDM, version, sim_box, 3000, repeats=10, dt=.1, tol=0; data=flatten(sim_data))
 
 
 # %% ==================== Process ====================
 @everywhere include("gp_likelihood.jl")
-@everywhere begin 
+@everywhere begin
     xs = $xs
     version = $version
 end
@@ -97,6 +109,7 @@ subjects = readdir("tmp/bddm/sobol/$version/")
 
 @showprogress pmap(subjects) do subject
     isfile("figs/$version/$subject.png") && return
+    occursin("v1", version) && error()
 
     true_x = xs[parse(Int, subject)]
     repeats = 10

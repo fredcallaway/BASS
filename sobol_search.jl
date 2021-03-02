@@ -14,7 +14,7 @@ function sobol_search(box, N, data, out; dt=.025,
     end
 
     ibs_kws = (;ε, tol, repeats, min_multiplier)
-    results = @showprogress out * "  " pmap(xs) do x
+    results = @showprogress "$out  " pmap(xs) do x
         m = BDDM(;box(x)...)
         ibs_loglike(m, trials[1:2:end]; ibs_kws...)
     end

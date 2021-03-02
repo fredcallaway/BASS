@@ -73,13 +73,17 @@ end
 
 function fit_gp(X, nll, nll_std; gp_mean = mean(nll), opt_points=1000)
     gp_mean = MeanConst(gp_mean)
-    kernel = SEArd(ones(size(X, 1)), -3.)
+    # this initialization seems to work well for some reason...
+    # kernel = SEArd(randn(size(X, 1)), log(maximum(nll) - minimum(nll)))
+    kernel = SEArd(-2. * ones(size(X, 1)), 0.)
     log_noise = log.(nll_std)
     opt_idx = 1:min(size(X, 2), opt_points)
     gp = GPE(X[:, opt_idx], nll[opt_idx], gp_mean, kernel, log_noise[opt_idx])
-    optimize!(gp, domean=false, noise=false)
-    GPE(X, nll, gp_mean, kernel, log_noise)
+    optimize!(gp, domean=false, noise=false, Optim.Options(iterations=100, f_tol=.001))    
+    GPE(X, nll, gp_mean, gp.kernel, log_noise)
 end
+
+# %% --------
 
 function cross_validate_gp(X, nll, nll_std; verbose=false, kws...)
     train = eachindex(nll)[1:2:end]
@@ -130,7 +134,6 @@ function GPSL(sr::SobolResult; kws...)
     X = sr.X[:, converged]
     nll = sr.nll[converged]
     nll_std = sr.nll_std[converged]
-    # cross_validate_gp(X, nll, nll_std; gp_mean)
     gp = fit_gp(X, nll, nll_std; gp_mean, kws...)
     GPSL(sr, gp)
 end
@@ -160,13 +163,13 @@ end
 
 # %% ==================== Main ====================
 
+#=
 model = BDDM
-version = "recovery/v1"
-subject = "1"
+version = "recovery/v4"
 repeats = 1
 opt_points = 1000
 verbose = false
-# %% --------
+=#
 
 function process_sobol_result(model, version, subject; repeats=100, opt_points=1000, verbose=false)
     sr = SobolResult(model, version, subject);
