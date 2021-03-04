@@ -75,11 +75,16 @@ function fit_gp(X, nll, nll_std; gp_mean = mean(nll), opt_points=1000)
     gp_mean = MeanConst(gp_mean)
     # this initialization seems to work well for some reason...
     # kernel = SEArd(randn(size(X, 1)), log(maximum(nll) - minimum(nll)))
-    kernel = SEArd(-2. * ones(size(X, 1)), 0.)
+    kernel = SEArd(-2. * ones(size(X, 1)), -1.)
     log_noise = log.(nll_std)
     opt_idx = 1:min(size(X, 2), opt_points)
     gp = GPE(X[:, opt_idx], nll[opt_idx], gp_mean, kernel, log_noise[opt_idx])
-    optimize!(gp, domean=false, noise=false, Optim.Options(iterations=100, f_tol=.001))    
+    optimize!(gp, domean=false, noise=false, Optim.Options(iterations=100, f_tol=.001))
+
+    yhat, yvar = predict_f(gp, X[:, opt_idx[end]:end])
+    ytrue = nll[opt_idx[end]:end]
+    √ mean((yhat .- ytrue).^2)
+
     GPE(X, nll, gp_mean, gp.kernel, log_noise)
 end
 

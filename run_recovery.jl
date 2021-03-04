@@ -20,24 +20,24 @@ mkpath("tmp/recovery")
 sim_box = Box(
     base_precision = (.01, 1, :log),
     attention_factor = (0, 1),
-    cost = (.001, .1),
+    cost = (.01, .03, :log),
     confidence_slope = (0, 0.25),
     prior_mean = (-2, 0),
 )
 
 n_subj = 20
-n_trial = 5000
 dt = .1
-
 xs = Iterators.take(SobolSeq(n_free(sim_box)), n_subj) |> collect
 
-trial_sets = map([1]) do data
-    [SimTrial(; dt) for i in 1:n_trial]
-end |> Iterators.cycle |> (x -> Iterators.take(x, length(xs)))
-# all_data = load_human_data()
-# trial_sets = map(collect(group(d->d.subject, all_data))) do data
-#     SimTrial.(prepare_trials(Table(data), dt=.1))
-# end |> Iterators.cycle  |> (x -> Iterators.take(x, length(xs)))
+# n_trial = 5000
+# trial_sets = map([1]) do data
+#     [SimTrial(; dt) for i in 1:n_trial]
+# end |> Iterators.cycle |> (x -> Iterators.take(x, length(xs)))
+
+all_data = load_human_data()
+trial_sets = map(collect(group(d->d.subject, all_data))) do data
+    SimTrial.(prepare_trials(Table(data), dt=.1))
+end |> Iterators.cycle  |> (x -> Iterators.take(x, length(xs)))
 
 function simulate_dataset(m, trials; subject=0)
     map(trials) do t
@@ -81,19 +81,11 @@ model_sum = map(summarize, sim_data) |> Table
 M = Table(Table(subject=eachindex(sim_data)), Table(sim_box.(xs)), model_sum)
 M |> CSV.write("tmp/qualitative.csv")
 Table([human_sum]) |> CSV.write("tmp/qualitative_human.csv")
-
 convert(Dict, map(quantile, columns(model_sum)))
 
-# %% --------
-trials = first(trial_sets);
-x = xs[4]
-m = BDDM(;sim_box(x)...)
-summarize(simulate_dataset(m, trials; subject))
-summarize(simulate_dataset(mutate(m; base_precision=100.), trials; subject))
-
 # %% ==================== Sobol search ====================
-version = "recovery/v4"
-run_sobol_ind(BDDM, version, sim_box, 3000, repeats=10, dt=.1, tol=0; data=flatten(sim_data))
+version = "recovery/v6"
+run_sobol_ind(BDDM, version, sim_box, 3000, repeats=50, dt=.1, tol=0; data=flatten(sim_data))
 
 
 # %% ==================== Process ====================
@@ -107,16 +99,16 @@ subjects = readdir("tmp/bddm/sobol/$version/")
 #     process_sobol_result(BDDM, "v7", subject)
 # end
 
-@showprogress pmap(subjects) do subject
-    isfile("figs/$version/$subject.png") && return
-    occursin("v1", version) && error()
+@showprogress pmap(subjects; on_error=identity) do subject
+    # isfile("figs/$version/$subject.png") && return
 
     true_x = xs[parse(Int, subject)]
-    repeats = 10
+    repeats = 100
     opt_points = 1000
     verbose = true
     sr = SobolResult(BDDM, version, subject);
     g = GPSL(sr; opt_points)
+    @show g.gp.kernel
 
     x0 = true_x
     xx_true = 0:.1:1
@@ -138,7 +130,7 @@ subjects = readdir("tmp/bddm/sobol/$version/")
         end |> invert
     end
 
-    y_true, y_true_std = true_nll_meanstd(sr, true_x; repeats=100)
+    y_true, y_true_std = true_nll_meanstd(sr, true_x; repeats=1000)
     # %% --------
 
     figure("$version/$subject") do
