@@ -2,6 +2,8 @@ using JSON
 using TypedTables
 using SplitApplyCombine
 
+MAX_RT = 5
+max_rt(t::Trial) = Int(MAX_RT / t.dt)
 
 if !@isdefined PRESENTATION_DURATIONS
     const PRESENTATION_DURATIONS = Dict(
@@ -34,8 +36,8 @@ function load_human_data(path="data/Study3Fred.json")
     raw_data = open(JSON.parse, path);
     map(raw_data) do d
         presentation_duration = parse_indpres(d["IndPresDur"])
-        avg_first = mean(presentation_duration[1:2:end])
-        avg_second = mean(presentation_duration[2:2:end])
+        avg_first = mean(presentation_duration[1:2:end-1])
+        avg_second = mean(presentation_duration[2:2:end-1])
         (
             subject = d["SubNum"],
             value = [d["fstItemV"], d["sndItemVal"]],

@@ -23,4 +23,5 @@ box = Box(
 )
 
 # run_sobol_group(BDDM, "test", box, 10, repeats=1, dt=.05, tol=20)
-run_sobol_group(BDDM, "v11", box, 5000, repeats=10, dt=.025, tol=0)
+# run_sobol_group(BDDM, "v11", box, 5000, repeats=10, dt=.025, tol=0)
+run_sobol_ind(BDDM, "v11", box, 5000, repeats=10, dt=.025, tol=0)

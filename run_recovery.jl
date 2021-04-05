@@ -108,7 +108,9 @@ subjects = readdir("tmp/bddm/sobol/$version/")
     verbose = true
     sr = SobolResult(BDDM, version, subject);
     g = GPSL(sr; opt_points)
-    @show g.gp.kernel
+
+    model_x, model_nll_hat, model_nll_true = model_minimum(g; repeats)
+    
 
     x0 = true_x
     xx_true = 0:.1:1

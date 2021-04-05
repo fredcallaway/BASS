@@ -21,7 +21,7 @@ end
 function estimate_reward(m::BDDM, pol::Policy, s::State, t::Trial, n; N=100000)
     rs = map(1:N) do i
         t = resample_values(t, s)
-        simulate(m, pol; s=copy(s), t, max_step=n).reward
+        simulate(m, t; pol, s=copy(s), max_step=n).reward
     end
     mean(rs), std(rs) / √N
 end
@@ -31,9 +31,9 @@ end
     presentation_distributions = [Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
     for i in 1:N_TEST
         t = SimTrial(;presentation_distributions)
-        s1 = simulate(m, CantStopWontStop(); t).states[1]
+        s1 = simulate(m, t, pol=CantStopWontStop()).states[1]
         t = mutate(t, dt=(0.1 / rand(1:100)))  # must evenly divide 0.2 and 0.5
-        s2 = simulate(m, CantStopWontStop(); t).states[1]
+        s2 = simulate(m, t, pol=CantStopWontStop()).states[1]
         @test s1.λ ≈ s2.λ
     end
 end
@@ -44,9 +44,9 @@ end
     for i in N_TEST
         t = SimTrial(;presentation_distributions, dt=rand([.1, .2, .3]))
         μ1, μ2 = map(1:10000) do i
-            simulate(m, CantStopWontStop(); t).states[1].μ
+            simulate(m, t, pol=CantStopWontStop()).states[1].μ
         end |> invert
-        λ1, λ2 = simulate(m, CantStopWontStop(); t).states[1].λ
+        λ1, λ2 = simulate(m, t, pol=CantStopWontStop()).states[1].λ
         v1, v2 = t.value
 
         an_μ1, an_λ1 = bayes_update_normal(0, 1, v1, λ1 - 1)
@@ -69,7 +69,7 @@ end
         λ_avg = average_precision(m, t)
         max_step = steps_per_cycle * 10
         λ_predicted = ones(2) + λ_avg * max_step
-        λ_empirical = simulate(m, CantStopWontStop(); t, max_step).states[end].λ
+        λ_empirical = simulate(m, t; pol=CantStopWontStop(), max_step).states[end].λ
         @test λ_predicted[1] ≈ λ_empirical[1]
 
         missing_precision_from_first_fixation =
@@ -85,7 +85,7 @@ all_trials = prepare_trials(all_data)
 @testset "presentation durations" begin
     m = BDDM()
     for t in all_trials
-        sim = simulate(m, t; pol=CantStopWontStop(), save_presentation=true)
+        sim = simulate(m, t, pol=CantStopWontStop(), save_presentation=true)
         @test sim.presentation_durations == t.real_presentation_times
     end
 end

@@ -1,8 +1,5 @@
 include("ibs.jl")
 
-MAX_RT = 5
-max_rt(t::Trial) = Int(MAX_RT / t.dt)
-
 function is_hit((choice, rt), t, tol)
     t.choice == choice && abs(rt - t.rt) ≤ tol
 end

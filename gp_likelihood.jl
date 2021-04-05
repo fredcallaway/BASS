@@ -31,7 +31,6 @@ struct SobolResult
     nll_std::Vector{Float64}
 end
 
-
 function SobolResult(model, version, subject)
     path = "tmp/$(lowercase(string(model)))/sobol/$version/$subject"
     @unpack box, xs, results, chance, ibs_kws, trials, default = deserialize(path);
@@ -42,6 +41,9 @@ function SobolResult(model, version, subject)
 
     SobolResult(model, version, subject, trials, ibs_kws, box, X, nll, nll_std)
 end
+
+identifier(sr::SobolResult) = join([lowercase(string(sr.model)), sr.version, sr.subject], "-")
+Base.show(io::IO, sr::SobolResult) = print(io, "SobolResult($(identifier(sr)))")
 
 
 function true_nll_meanstd(sr::SobolResult, x; repeats=100, kws...)
@@ -60,9 +62,6 @@ function empirical_minimum(sr::SobolResult; repeats=100, verbose=true)
     recomputed = round1(true_nll(sr, x; repeats))
     x, sr.nll[i], recomputed
 end
-
-figpath(sr::SobolResult) = "figs/$(lowercase(string(sr.model)))-$(sr.version)-$(sr.subject)"
-resultpath(sr::SobolResult) = "results/$(lowercase(string(sr.model)))-$(sr.version)-$(sr.subject)"
 
 # %% ==================== GP Surrogate ====================
 
@@ -117,13 +116,13 @@ function predict_quantile(g::GPSL, x, q)
     quantile(Normal(f, σ), q)
 end
 
-function find_minimum(g::GPSL; restarts=100)
-    minimize(g.gp.dim; restarts) do x
+function find_minimum(g::GPSL; restarts=10)
+    minimize(g.gp.dim; restarts, method=BFGS(), autodiff=:forward) do x
         predict_quantile(g, x, 0.9)  # robustness -- look for minima with low variance
     end
 end
 
-function model_minimum(g::GPSL; repeats=100)
+ function model_minimum(g::GPSL; repeats=100)
     model_x, model_nll = find_minimum(g)
     (model_x, model_nll, true_nll(g.sr, model_x; repeats))
 end
@@ -147,7 +146,7 @@ end
 # %% ==================== Plots ====================
 
 function plot_marginals(g::GPSL, x0)
-    figure("$(figpath(g.sr))-marginals") do
+    figure("$(identifier(g.sr))-marginals") do
         xx = 0:.01:1
         chance = chance_loglike(g.sr)
         plots = map(enumerate(pairs(g.sr.box.dims))) do (i, (name, d))
@@ -170,10 +169,11 @@ end
 
 #=
 model = BDDM
-version = "recovery/v4"
+version = "v11"
 repeats = 1
 opt_points = 1000
 verbose = false
+subject = "group"
 =#
 
 function process_sobol_result(model, version, subject; repeats=100, opt_points=1000, verbose=false)
@@ -204,6 +204,7 @@ function process_sobol_result(model, version, subject; repeats=100, opt_points=1
     end
     plot_marginals(g, best_x)
 
-    res = (; emp_x, emp_nll_hat, emp_nll_true, model_x, model_nll_hat, model_nll_true, best_x)
-    serialize(resultpath(sr) * "-mle", res)
+    prm = sr.box(best_x)
+    res = (; emp_x, emp_nll_hat, emp_nll_true, model_x, model_nll_hat, model_nll_true, best_x, prm, sr.trials[1].dt)
+    serialize("results/$(identifier(sr))-mle", res)
 end
