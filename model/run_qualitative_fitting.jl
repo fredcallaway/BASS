@@ -1,74 +1,144 @@
 using Distributed
+using ProgressMeter
+
 @everywhere using Revise
 @everywhere includet("qualitative_fitting.jl")
 
-# %% ==================== Regress on human ====================
-
-r_coef =  [0.18520,  3.38329, -0.06293, -0.01858, -0.01758,  0.11178,  0.15935, -0.21492,  0.23312, -0.83975,  0.03660, -0.20990,  0.09570, -0.11671,  0.62663,  0.90826, ]
-
-human_fit = fit_choice_model(human_df)
-Table(
-    predictor=coeftable(human_fit).rownms,
-    r=r_coef,
-    julia=coef(human_fit),
-    # model=results[best].cols[1]
-)
-
-# %% ==================== Sobol ====================
+# %% ==================== Simulate models ====================
 
 box = Box(
     base_precision = (.01, 1, :log),
-    attention_factor = (0, 2),
+    attention_factor = (0, 1),
     cost = (.01, .1, :log),
     confidence_slope = (0, 0.1),
-    prior_mean = (-1, 1),
+    prior_mean = (-1, 0),
 )
+serialize("tmp/qualitative/box", box)
 
 candidates = map(Iterators.take(SobolSeq(n_free(box)), 10000)) do x
     BDDM(;box(x)...)
+end;
+
+mkpath("tmp/qualitative/sims")
+@time write_base_sim()
+@everywhere base_sim = deserialize("tmp/qualitative/sims/base")
+
+# %% --------
+
+results = @showprogress pmap(enumerate(candidates)) do (i, m)
+    sim_df = if isfile("tmp/qualitative/sims/$i")
+         load_sim(i)
+    else
+        @assert false
+        x = make_frame(simulate_dataset(m, trials));
+        write_sim(i, x)
+        x
+    end
+    @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
+    @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
+    choice_fit = coeftable(fit_choice_model(sim_df))
+    rt_fit = coeftable(fit_rt_model(sim_df))
+    (; choice_fit, rt_fit)
 end
 
-# m = first(candidates)
-# using SplitApplyCombine: flatten
+# %% ==================== Compare to model fit to human ====================
 
-mkdir("tmp/qualitative/sims")
+human_fit_choice = fit_choice_model(human_df)
+human_coef_choice = coef(human_fit_choice)
+human_err_choice = stderror(human_fit_choice)
 
-@time results = @showprogress pmap(enumerate(candidates)) do (i, m)
-    @time sim_df = make_frame(simulate_dataset(m, trials[1:72750]));
-    # serialize("tmp/qualitative/sims/$i", sim_df)
-    sim_fit = fit_choice_model(sim_df)
-    coeftable(sim_fit)
+human_fit_rt = fit_rt_model(human_df)
+human_coef_rt = coef(human_fit_rt)
+human_err_rt = stderror(human_fit_rt)
+
+select_choice = [
+    "(Intercept)",
+    "rel_value",
+    "avg_value",
+    "rel_conf",
+    "rel_value & avg_conf",
+    "avg_value & rel_conf",
+    "avg_value & prop_first_presentation"
+]
+choice_idx = coeftable(human_fit_choice).rownms .∈ [select_choice]
+
+select_rt = [
+    "(Intercept)",
+    "abs_rel_value",
+    "avg_value",
+    "prop_first_presentation",
+    "avg_conf",
+    "rel_conf",
+    "rel_value & prop_first_presentation"
+]
+rt_idx = coeftable(human_fit_rt).rownms .∈ [select_rt]
+
+loss = map(results) do (choice_fit, rt_fit)
+    choice_loss = sum(((choice_fit.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2)
+    rt_loss = sum(((rt_fit.cols[1][rt_idx] .- human_coef_rt[rt_idx]) ./ human_err_rt[rt_idx]) .^ 2)
+    choice_loss + rt_loss
 end
+best = argmin(loss)
+@show loss[best]
+candidates[best]
 
-sim_df = simulate_dataset(candidates[best], trials[1:72750])
+# %% --------
+Table(
+    predictor=coeftable(human_fit_choice).rownms,
+    human=coef(human_fit_choice),
+    model=results[best].choice_fit.cols[1],
+    loss= choice_idx .* ((results[best].choice_fit.cols[1] .- human_coef_choice) ./ human_err_choice) .^ 2
+)
+
+Table(
+    predictor=coeftable(human_fit_rt).rownms,
+    human=coef(human_fit_rt),
+    model=results[best].rt_fit.cols[1],
+    loss= rt_idx .* ((results[best].rt_fit.cols[1] .- human_coef_rt) ./ human_err_rt) .^ 2
+)
+
+# %% --------
+sim_df = make_frame(simulate_dataset(candidates[best], trials))
+@. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
+@. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
+# recompute loss
+@show loss[best]
+# xx = coeftable(fit_choice_model(sim_df))
+# new_loss = sum(((xx.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2)
+# @show new_loss
+
+sim_df |> CSV.write("results/qualitative_sim_may6.csv")
+
+# %% --------
+function prepare_frame(df)
+    Table(
+        # subject = categorical(df.subject),
+        choice = df.choice,
+        rt = df.pt1 .+ df.pt2  .- rt_μ,
+        # rt = @.((df.pt1 + df.pt2  - rt_μ) / 2rt_σ),
+        rel_value = (df.val1 .- df.val2) ./ 10,
+        rel_conf = df.conf1 .- df.conf2,
+        avg_value = demean(df.val1 .+ df.val2) ./ 20,
+        avg_conf = demean(df.conf1 .+ df.conf2),
+        prop_first_presentation = (df.pt1 ./ (df.pt1 .+ df.pt2)) .- 0.5,
+        conf_bias = demean(2 .* getindex.([conf_bias], df.subject))
+    )
+end
+T = prepare_frame(sim_df)
+choice_formula = @formula(choice==1 ~ rel_value)
+
+fit(GeneralizedLinearModel, choice_formula, prepare_frame(sim_df), Bernoulli())
+fit(GeneralizedLinearModel, choice_formula, prepare_frame(human_df), Bernoulli())
+
+# %% --------
+
+sim_df = simulate_dataset(candidates[best], trials)
 @time sim_df |> CSV.write("tmp/test.csv")
 @time serialize("tmp/test", sim_df)
 
 # R = Table(results)
 serialize("tmp/qualitative_apr9", (;box, results))
 # %% --------
-human_fit = fit_choice_model(human_df)
-human_coef = coef(human_fit)
-human_err = stderror(human_fit)
-
-loss = map(results) do r
-    sum(((r.cols[1] .- human_coef) ./ human_err) .^ 2)
-end
-
-best = argmin(loss)
-loss[best]
-m = candidates[best]
-sim_df = make_frame(simulate_dataset(m, trials[1:72750]))
-sim_df |> CSV.write("results/qualitative_sim_apr10.csv")
-
-
-
-Table(
-    predictor=coeftable(human_fit).rownms,
-    human=coef(human_fit),
-    model=results[best].cols[1]
-)
-
 # %% --------
 using GaussianProcesses
 box, R = deserialize("tmp/qualitative_feb7")
@@ -140,3 +210,15 @@ figure() do
     end
     plot(ps..., size=(600, 600))
 end
+
+# %% --------
+
+map(candidates[partialsortperm(loss, 1:100)]) do m
+    (;m.base_precision,
+     m.attention_factor,
+     m.cost,
+     m.confidence_slope,
+     m.prior_mean)
+end |> Table
+
+

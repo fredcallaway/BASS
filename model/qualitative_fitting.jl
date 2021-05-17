@@ -5,7 +5,6 @@ include("data.jl")
 include("box.jl")
 # include("binning.jl")
 using GLM
-using ProgressMeter
 using Sobol
 using Serialization
 using CSV
@@ -22,9 +21,10 @@ end
 
 data = load_human_data()
 human_df = make_frame(data)
-trials = repeat(prepare_trials(Table(data); dt=.025), 100);
+trials = repeat(prepare_trials(Table(data); dt=.025), 10);
 
 rt_μ, rt_σ = juxt(mean, std)(human_df.pt1 + human_df.pt2)
+val_μ, val_σ = juxt(mean, std)(flatten(data.value))
 conf_bias = map(group(x->x.subject, human_df)) do x
     mean([x.conf1; x.conf2])
 end
@@ -52,22 +52,34 @@ zscore(x) = x .- mean(x) ./ std(x)
 #     fit(GeneralizedLinearModel, choice_formula, T, Bernoulli())
 # end
 
-function fit_choice_model(df)
-    T = Table(
+function prepare_frame(df)
+    Table(
         # subject = categorical(df.subject),
         choice = df.choice,
-        rt = @.((df.pt1 + df.pt2  - rt_μ) / 2rt_σ),
-        # rt = zscore(df.pt1 .+ df.pt2),
-        rel_value = normalize(df.val1 .- df.val2),
-        rel_conf = normalize(df.conf1 .- df.conf2),
-        avg_value = zscore(df.val1 .+ df.val2),
-        avg_conf = zscore(df.conf1 .+ df.conf2),
-        prop_first_presentation = zscore(df.pt1 ./ (df.pt1 .+ df.pt2)),
-        conf_bias = getindex.([conf_bias], df.subject),
+        rt = df.pt1 .+ df.pt2  .- rt_μ,
+        log1000rt = log.(1000 .* (df.pt1 .+ df.pt2)),
+        # rt = @.((df.pt1 + df.pt2  - rt_μ) / 2rt_σ),
+        rel_value = (df.val1 .- df.val2) ./ 10,
+        rel_conf = df.conf1 .- df.conf2,
+        abs_rel_value = demean(abs.((df.val1 .- df.val2) ./ 10)),
+        avg_value = demean(df.val1 .+ df.val2) ./ 20,
+        avg_conf = demean(df.conf1 .+ df.conf2),
+        prop_first_presentation = (df.pt1 ./ (df.pt1 .+ df.pt2)) .- 0.5,
+        conf_bias = demean(2 .* getindex.([conf_bias], df.subject))
     )
+end
+
+function fit_choice_model(df)
     choice_formula = @formula(choice==1 ~ (rel_value + avg_value) *
-        (avg_conf + conf_bias + rel_conf + prop_first_presentation));
-    fit(GeneralizedLinearModel, choice_formula, T, Bernoulli())
+        (avg_conf + conf_bias + rel_conf + prop_first_presentation) + rt);
+
+    fit(GeneralizedLinearModel, choice_formula, prepare_frame(df), Bernoulli())
+end
+
+function fit_rt_model(df)
+    formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation +
+                       (avg_conf + rel_conf + conf_bias))
+    fit(LinearModel, formula, prepare_frame(df))
 end
 
 function simulate_dataset(m, trials)
@@ -81,8 +93,25 @@ function simulate_dataset(m, trials)
     end
 end
 
-function foo()
-    println(4)
+function write_sim(i, df)
+    serialize("tmp/qualitative/sims/$i", (;df.pt1, df.pt2, choose_second=df.choice .== 2))
+end
+
+function load_sim(i)
+    x = deserialize("tmp/qualitative/sims/$i");
+    df = deepcopy(base_sim)
+    df.choice .= 1 .+ x.choose_second
+    df.pt1 .= x.pt1
+    df.pt2 .= x.pt2
+    df
+end
+
+function write_base_sim()
+  base_sim = make_frame(simulate_dataset(candidates[1], trials));
+  base_sim.choice .= 0
+  base_sim.pt1 .= NaN
+  base_sim.pt2 .= NaN
+  serialize("tmp/qualitative/sims/base", base_sim)
 end
 
 # function create_loss_function()
