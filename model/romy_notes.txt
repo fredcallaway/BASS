@@ -20,26 +20,48 @@ oval:ppt        0.90826    0.46011   1.974   0.0484 *
 
 Coefficients:
                 Estimate Std. Error z value Pr(>|z|)    
-(Intercept)    -0.147916   0.009069 -16.311  < 2e-16 ***
-rval           16.152314   0.183558  87.996  < 2e-16 ***
-oval            1.658806   0.102236  16.225  < 2e-16 ***
-oconf           0.009850   0.006857   1.437 0.150826    
-conf_bias       0.014209   0.012185   1.166 0.243565    
-rconf          -0.042104   0.008412  -5.005 5.59e-07 ***
-ppt            -0.080934   0.041493  -1.951 0.051111 .  
-rt              0.255055   0.012405  20.561  < 2e-16 ***
-rval:oconf      0.497718   0.143280   3.474 0.000513 ***
-rval:conf_bias -1.078276   0.247493  -4.357 1.32e-05 ***
-rval:rconf      0.011833   0.133566   0.089 0.929405    
-rval:ppt       -0.547651   0.856569  -0.639 0.522593    
-oval:oconf      0.112798   0.074031   1.524 0.127596    
-oval:conf_bias  0.272372   0.114413   2.381 0.017285 *  
-oval:rconf      0.552536   0.093047   5.938 2.88e-09 ***
-oval:ppt        0.845899   0.431197   1.962 0.049792 *  
+(Intercept)    -0.147916   0.009069 -16.311  < 2e-16 ***  (Intercept)
+rval           16.152314   0.183558  87.996  < 2e-16 ***  rel_value
+oval            1.658806   0.102236  16.225  < 2e-16 ***  avg_value
+oconf           0.009850   0.006857   1.437 0.150826      avg_conf
+conf_bias       0.014209   0.012185   1.166 0.243565      conf_bias
+rconf          -0.042104   0.008412  -5.005 5.59e-07 ***  rel_conf
+ppt            -0.080934   0.041493  -1.951 0.051111 .    prop_first_presentation
+rt              0.255055   0.012405  20.561  < 2e-16 ***  rt
+rval:oconf      0.497718   0.143280   3.474 0.000513 ***  rel_value & avg_conf
+rval:conf_bias -1.078276   0.247493  -4.357 1.32e-05 ***  rel_value & conf_bias
+rval:rconf      0.011833   0.133566   0.089 0.929405      rel_value & rel_conf
+rval:ppt       -0.547651   0.856569  -0.639 0.522593      rel_value & prop_first_presentation
+oval:oconf      0.112798   0.074031   1.524 0.127596      avg_value & avg_conf
+oval:conf_bias  0.272372   0.114413   2.381 0.017285 *    avg_value & conf_bias
+oval:rconf      0.552536   0.093047   5.938 2.88e-09 ***  avg_value & rel_conf
+oval:ppt        0.845899   0.431197   1.962 0.049792 *    avg_value & prop_first_presentation
+
+
+
+ 
+ 
+ 
+ 
+ 
+ 
 
 
 
 
+
+
+
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
 
 
 

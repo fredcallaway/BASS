@@ -1,13 +1,12 @@
 using ProgressMeter
 
 # %% ==================== GP likelihood ====================
-
+version = "v12"
 @everywhere include("gp_likelihood.jl")
-run_name = "bddm/sobol/v10/"
+run_name = "bddm/sobol/$version/"
 subjects = readdir("tmp/$run_name")
 @showprogress "Processing sobol results" pmap(subjects) do subject
-    process_sobol_result(BDDM, "v10", subject)
+    process_sobol_result(BDDM, "$version", subject)
 end
 
-process_sobol_result(BDDM, "v11", "group")
 

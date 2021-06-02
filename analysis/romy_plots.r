@@ -39,7 +39,8 @@ library(Rmisc)
 basepath = "Romy"
 ### load data ###
 # 3 studies - I will only leave the last one for example plotting.
-input_file = 'results/bddm-v11-group.csv' #'sep9-stupid_confidence.csv'#'sep9-stupid_prior.csv'#sep7-stupid_prior.csv'#'sep7-basic.csv'#'sep7-stupid_confidence.csv'#'sep7-basic.csv'#'sep8-replicate-jul24-D.csv'#'jul24-D.csv' #'jul24-C.csv' #'jul24-B.csv' #'jul24.csv' #'jun29.csv' #
+input_file = '../model/results/qualitative_sim_may6.csv' #'sep9-stupid_confidence.csv'#'sep9-stupid_prior.csv'#sep7-stupid_prior.csv'#'sep7-basic.csv'#'sep7-stupid_confidence.csv'#'sep7-basic.csv'#'sep8-replicate-jul24-D.csv'#'jul24-D.csv' #'jul24-C.csv' #'jul24-B.csv' #'jul24.csv' #'jun29.csv' #
+# input_file = '../model/results/qualitative_sim_apr11.csv' #'sep9-stupid_confidence.csv'#'sep9-stupid_prior.csv'#sep7-stupid_prior.csv'#'sep7-basic.csv'#'sep7-stupid_confidence.csv'#'sep7-basic.csv'#'sep8-replicate-jul24-D.csv'#'jul24-D.csv' #'jul24-C.csv' #'jul24-B.csv' #'jul24.csv' #'jun29.csv' #
 a1c = read.csv(input_file)
 
 ### color definitions ###
@@ -51,6 +52,8 @@ darkcolssub <-  darkcols[c(1:2, 6:8)]
 darkcolsg <- brewer.pal(8, "Greens")
 darkcolssubg <-  darkcolsg[c(4:8)]
 
+curfigpath = "figs/qualitative_may6/"
+dir.create(curfigpath, showWarnings=F)
 # ### generate an output directory for each datafile
 # x <-  str_locate_all(pattern ='.csv',input_file)
 # stop = x[[1]][1]-1
@@ -175,9 +178,9 @@ eff_df <- Effect(c("fstosnd"), Choicemod0, xlevels=list(fstosnd =seq(min(a1c$fst
 
 IA <- as.data.frame(eff_df)
 
-pRV<- ggplot(data=IA, aes(x=fstosnd, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+
+(pRV<- ggplot(data=IA, aes(x=fstosnd, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+
   scale_fill_manual(name="presentation\n duration\n first", values=cbPalette)+geom_line(data=IA, aes(x=fstosnd, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("Relative first item value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.25, 0.2))+
-  coord_cartesian(ylim = c(0, 1)) 
+  coord_cartesian(ylim = c(0, 1)) )
 
 pdf(paste0(curfigpath, "RVFredSim",i,".pdf"), width = 4, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
 print(pRV)
@@ -188,9 +191,9 @@ eff_df <- Effect(c("savV", "spdfirst"), Choicemod0, xlevels=list(savV =seq(min(a
 IA <- as.data.frame(eff_df)
 IA$spdfirst <- as.factor(round(IA$spdfirst,1))
 
-plmodfstOV <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = spdfirst),alpha=0.1, inherit.aes = FALSE)+# ylim(-0.5, 1.5)+
+(plmodfstOV <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = spdfirst),alpha=0.1, inherit.aes = FALSE)+# ylim(-0.5, 1.5)+
   scale_fill_manual(name="Relative\nfirst item\npresentation", values=darkcolssub)+geom_line(data=IA, aes(x=savV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("Overall value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position="right") +#c(0.8, 0.2)
-  coord_cartesian(ylim = c(0, 1)) 
+  coord_cartesian(ylim = c(0, 1)) )
 
 pdf(paste0(curfigpath, "RPDbyOV504",i,".pdf"), width = 5, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
 print(plmodfstOV)
@@ -215,9 +218,9 @@ eff_df <- Effect(c("savV", "spdfirst"), Choicemod0, xlevels=list(savV =seq(min(a
 
 IA <- as.data.frame(eff_df)
 IA$spdfirst <- as.factor(round(IA$spdfirst,1))
-plmodfstOV <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = spdfirst),alpha=0.1, inherit.aes = FALSE)+# ylim(-0.5, 1.5)+
+(plmodfstOV <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = spdfirst),alpha=0.1, inherit.aes = FALSE)+# ylim(-0.5, 1.5)+
   scale_fill_manual(name="Relative\nfirst item\npresentation", values=darkcolssub)+geom_line(data=IA, aes(x=savV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("Overall value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position="right") +#c(0.8, 0.2)
-  coord_cartesian(ylim = c(0, 1)) 
+  coord_cartesian(ylim = c(0, 1)) )
 pdf(paste0(curfigpath, "RPDbyOVControllingForConfFredSim",i,".pdf"), width = 5, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
 print(plmodfstOV)
 dev.off()
@@ -238,8 +241,8 @@ eff_df <- Effect(c("fstosnd", "totalConfidence"), Choicemod0, xlevels=list(fstos
 IA <- as.data.frame(eff_df)
 IA$totalConfidence <- as.factor(IA$totalConfidence)
 
-plmodfst<- ggplot(data=IA, aes(x=fstosnd, y=fit , color= totalConfidence )) + geom_line()+scale_colour_manual(name="Set\n Confidence", values=darkcolssubg) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se, fill = totalConfidence),alpha=0.1, inherit.aes = FALSE)+ #ylim(0, 1)+
-  scale_fill_manual(name="Set\n Confidence", values=darkcolssubg)+geom_line(data=IA, aes(x=fstosnd, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("First minus Second Value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.75, 0.25),legend.background=element_blank())+  coord_cartesian(ylim = c(0, 1)) 
+(plmodfst<- ggplot(data=IA, aes(x=fstosnd, y=fit , color= totalConfidence )) + geom_line()+scale_colour_manual(name="Set\n Confidence", values=darkcolssubg) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se, fill = totalConfidence),alpha=0.1, inherit.aes = FALSE)+ #ylim(0, 1)+
+  scale_fill_manual(name="Set\n Confidence", values=darkcolssubg)+geom_line(data=IA, aes(x=fstosnd, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("First minus Second Value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.75, 0.25),legend.background=element_blank())+  coord_cartesian(ylim = c(0, 1)) )
 
 
 eff_df <- Effect(c("savV", "ConfDif"), Choicemod0, xlevels=list(savV =seq(min(a1c$savV ), max(a1c$savV), 0.1)) )
@@ -247,8 +250,8 @@ eff_df <- Effect(c("savV", "ConfDif"), Choicemod0, xlevels=list(savV =seq(min(a1
 IA <- as.data.frame(eff_df)
 IA$ConfDif <- as.factor(IA$ConfDif)
 
-plmodsnd<- ggplot(data=IA, aes(x=savV, y=fit , color= ConfDif )) + geom_line()+scale_colour_manual(name="Confidence\n Difference", values=darkcolssubg) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = ConfDif),alpha=0.1, inherit.aes = FALSE)+ #ylim(0, 1)+
-  scale_fill_manual(name="Confidence\n Difference", values=darkcolssubg)+geom_line(data=IA, aes(x=savV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("Overall Value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.3, 0.25),legend.background=element_blank())+  coord_cartesian(ylim = c(0, 1)) 
+(plmodsnd<- ggplot(data=IA, aes(x=savV, y=fit , color= ConfDif )) + geom_line()+scale_colour_manual(name="Confidence\n Difference", values=darkcolssubg) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=savV, max = fit + se, min = fit- se, fill = ConfDif),alpha=0.1, inherit.aes = FALSE)+ #ylim(0, 1)+
+  scale_fill_manual(name="Confidence\n Difference", values=darkcolssubg)+geom_line(data=IA, aes(x=savV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=0, linetype=2, size=0.2) + xlab("Overall Value") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.3, 0.25),legend.background=element_blank())+  coord_cartesian(ylim = c(0, 1)) )
 
 if (doBias==1){
 pdf(paste0(curfigpath, "OVByConf",i,".pdf"), width = 12, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
@@ -440,5 +443,5 @@ pdf(paste0(curfigpath, "RTConfAll",i,".pdf"), width = 8, height = 4)#, units = '
 print(multiplot(plmodfstbtTC, plmodfstbtCD,  cols =2))
 dev.off()
 }
-}
+# }
 

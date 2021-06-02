@@ -169,10 +169,10 @@ end
 
 #=
 model = BDDM
-version = "v11"
+version = "v12"
 repeats = 1
 opt_points = 1000
-verbose = false
+verbose = true
 subject = "group"
 =#
 

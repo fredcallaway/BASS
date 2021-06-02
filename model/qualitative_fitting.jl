@@ -13,8 +13,8 @@ function make_frame(data)
    map(data) do d                                                                                                          
        val1, val2 = d.value                                                                                                
        conf1, conf2 = d.confidence                                                                                         
-       pt1 = round(sum(d.presentation_duration[1:2:end]); digits=3)                                                        
-       pt2 = round(sum(d.presentation_duration[2:2:end]); digits=3)                                                        
+       pt1 = round(sum(d.presentation_duration[1:2:end]); digits=3)
+       pt2 = round(sum(d.presentation_duration[2:2:end]); digits=3)
        (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice)                                                                     
    end |> Table                                                                                                            
 end    
