@@ -9,15 +9,15 @@ using Sobol
 using Serialization
 using CSV
 
-function make_frame(data)                                                                                                   
-   map(data) do d                                                                                                          
-       val1, val2 = d.value                                                                                                
-       conf1, conf2 = d.confidence                                                                                         
+function make_frame(data)
+   map(data) do d
+       val1, val2 = d.value
+       conf1, conf2 = d.confidence
        pt1 = round(sum(d.presentation_duration[1:2:end]); digits=3)
        pt2 = round(sum(d.presentation_duration[2:2:end]); digits=3)
-       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice)                                                                     
-   end |> Table                                                                                                            
-end    
+       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice, d.rt)
+   end |> Table
+end
 
 data = load_human_data()
 human_df = make_frame(data)
@@ -82,23 +82,23 @@ function fit_rt_model(df)
     fit(LinearModel, formula, prepare_frame(df))
 end
 
-function simulate_dataset(m, trials)
+function simulate_dataset(m, trials; ndt=0)
     map(trials) do t
         sim = simulate(m, t; save_presentation=true)
         presentation_duration = t.dt .* sim.presentation_durations
         m1, m2 = mean.(t.presentation_distributions)
         order = m1 > m2 ? :longfirst : :shortfirst
-        rt = sim.time_step .* t.dt
+        rt = sim.time_step .* t.dt + ndt
         (;t.subject, t.value, t.confidence, presentation_duration, order, sim.choice, rt)
     end
 end
 
 function write_sim(i, df)
-    serialize("tmp/qualitative/sims/$i", (;df.pt1, df.pt2, choose_second=df.choice .== 2))
+    serialize("tmp/qualitative/$version/sims/$i", (;df.pt1, df.pt2, choose_second=df.choice .== 2))
 end
 
 function load_sim(i)
-    x = deserialize("tmp/qualitative/sims/$i");
+    x = deserialize("tmp/qualitative/$version/sims/$i");
     df = deepcopy(base_sim)
     df.choice .= 1 .+ x.choose_second
     df.pt1 .= x.pt1
@@ -111,7 +111,7 @@ function write_base_sim()
   base_sim.choice .= 0
   base_sim.pt1 .= NaN
   base_sim.pt2 .= NaN
-  serialize("tmp/qualitative/sims/base", base_sim)
+  serialize("tmp/qualitative/$version/sims/base", base_sim)
 end
 
 # function create_loss_function()

@@ -5,31 +5,32 @@ using ProgressMeter
 @everywhere includet("qualitative_fitting.jl")
 
 # %% ==================== Simulate models ====================
+@everywhere version = "v3"
+mkpath("tmp/qualitative/$version/")
 
 box = Box(
-    base_precision = (.01, 1, :log),
+    base_precision = (.0005, .01, :log),
     attention_factor = (0, 1),
-    cost = (.01, .1, :log),
+    cost = (.0001, .002, :log),
     confidence_slope = (0, 0.1),
     prior_mean = (-1, 0),
 )
-serialize("tmp/qualitative/box", box)
+serialize("tmp/qualitative/$version/box", box)
 
 candidates = map(Iterators.take(SobolSeq(n_free(box)), 10000)) do x
     BDDM(;box(x)...)
 end;
 
-mkpath("tmp/qualitative/sims")
+mkpath("tmp/qualitative/$version/sims")
 @time write_base_sim()
-@everywhere base_sim = deserialize("tmp/qualitative/sims/base")
+@everywhere base_sim = deserialize("tmp/qualitative/$version/sims/base")
 
 # %% --------
 
 results = @showprogress pmap(enumerate(candidates)) do (i, m)
-    sim_df = if isfile("tmp/qualitative/sims/$i")
+    sim_df = if isfile("tmp/qualitative/$version/sims/$i")
          load_sim(i)
     else
-        @assert false
         x = make_frame(simulate_dataset(m, trials));
         write_sim(i, x)
         x
@@ -39,7 +40,8 @@ results = @showprogress pmap(enumerate(candidates)) do (i, m)
     choice_fit = coeftable(fit_choice_model(sim_df))
     rt_fit = coeftable(fit_rt_model(sim_df))
     (; choice_fit, rt_fit)
-end
+end;
+length(results)
 
 # %% ==================== Compare to model fit to human ====================
 
@@ -77,10 +79,18 @@ loss = map(results) do (choice_fit, rt_fit)
     choice_loss = sum(((choice_fit.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2)
     rt_loss = sum(((rt_fit.cols[1][rt_idx] .- human_coef_rt[rt_idx]) ./ human_err_rt[rt_idx]) .^ 2)
     choice_loss + rt_loss
+    #choice_loss
 end
 best = argmin(loss)
 @show loss[best]
 candidates[best]
+
+# %% --------
+rt_intercepts = map(results) do (choice_fit, rt_fit)
+    rt_fit.cols[1][1]  # intercept Coef.
+end
+quantile(rt_intercepts)
+coef(human_fit_rt)[1]
 
 # %% --------
 Table(
@@ -98,16 +108,19 @@ Table(
 )
 
 # %% --------
-sim_df = make_frame(simulate_dataset(candidates[best], trials))
+sim_df = make_frame(simulate_dataset(candidates[best], trials; ndt=500))
+
 @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
 @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
 # recompute loss
 @show loss[best]
-# xx = coeftable(fit_choice_model(sim_df))
-# new_loss = sum(((xx.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2)
-# @show new_loss
 
-sim_df |> CSV.write("results/qualitative_sim_may6.csv")
+# DOESN"T INCLUDE RT
+#xx = coeftable(fit_choice_model(sim_df))
+#new_loss = sum(((xx.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2) +
+#@show new_loss
+
+sim_df |> CSV.write("results/qualitative_sim_$version.csv")
 
 # %% --------
 function prepare_frame(df)
@@ -139,7 +152,7 @@ sim_df = simulate_dataset(candidates[best], trials)
 # R = Table(results)
 serialize("tmp/qualitative_apr9", (;box, results))
 # %% --------
-# %% --------
+
 using GaussianProcesses
 box, R = deserialize("tmp/qualitative_feb7")
 X = reduce(hcat, Iterators.take(SobolSeq(n_free(box)), 40000))
