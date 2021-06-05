@@ -10,3 +10,4 @@ scratch.jl
 tmp/
 .fighist/
 model/figs/
+analysis/plot_human.Rdata
