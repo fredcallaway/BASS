@@ -11,3 +11,4 @@ tmp/
 .fighist/
 model/figs/
 analysis/plot_human.Rdata
+figures/
