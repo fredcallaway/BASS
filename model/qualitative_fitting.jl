@@ -19,7 +19,15 @@ function make_frame(data)
    end |> Table
 end
 
-data = load_human_data()
+if @isdefined(STUDY)
+    if myid() == 1
+        @info "Setting up fitting for study $STUDY"
+    end
+else
+    error("STUDY is not set")
+end
+
+data = load_human_data(STUDY)
 human_df = make_frame(data)
 trials = repeat(prepare_trials(Table(data); dt=.025), 10);
 
@@ -70,21 +78,34 @@ function prepare_frame(df)
 end
 
 function fit_choice_model(df)
-    choice_formula = @formula(choice==1 ~ (rel_value + avg_value) *
-        (avg_conf + conf_bias + rel_conf + prop_first_presentation) + rt);
-
-    fit(GeneralizedLinearModel, choice_formula, prepare_frame(df), Bernoulli())
+    if STUDY == 3
+        formula = @formula(choice==1 ~ (rel_value + avg_value) *
+            (avg_conf + conf_bias + rel_conf + prop_first_presentation) + rt);
+    elseif STUDY == 2
+        # TODO
+        formula = @formula(choice==1 ~ (rel_value + avg_value) * prop_first_presentation + rt);
+    else
+        error("Bad STUDY")
+    end 
+    fit(GeneralizedLinearModel, formula, prepare_frame(df), Bernoulli())
 end
 
 function fit_rt_model(df)
-    formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation +
-                       (avg_conf + rel_conf + conf_bias))
+    if STUDY == 3
+        formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation +
+                           (avg_conf + rel_conf + conf_bias))
+    elseif STUDY == 2
+        # TODO
+        formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation)
+    else
+        error("Bad STUDY")
+    end 
     fit(LinearModel, formula, prepare_frame(df))
 end
 
 function simulate_dataset(m, trials; ndt=0)
     map(trials) do t
-        sim = simulate(m, t; save_presentation=true)
+        sim = simulate(m, SimTrial(t); save_presentation=true)
         presentation_duration = t.dt .* sim.presentation_durations
         m1, m2 = mean.(t.presentation_distributions)
         order = m1 > m2 ? :longfirst : :shortfirst

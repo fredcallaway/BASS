@@ -32,6 +32,17 @@ function parse_indpres(x)
 end
 
 # %% --------
+
+function get_confidence(d)
+    if "fstConfidence" in keys(d)
+        Float64[d["fstConfidence"], d["sndConfidence"]]
+    else
+        #guess = median(flatten(load_human_data().confidence))
+        guess = 4.  # this is what we get from the line above
+        [guess, guess]
+    end
+end
+
 function load_human_data(path="data/Study3Fred.json")
     raw_data = open(JSON.parse, path);
     map(raw_data) do d
@@ -41,7 +52,7 @@ function load_human_data(path="data/Study3Fred.json")
         (
             subject = d["SubNum"],
             value = [d["fstItemV"], d["sndItemVal"]],
-            confidence = Float64[d["fstConfidence"], d["sndConfidence"]],
+            confidence = get_confidence(d),
             presentation_duration,
             # nfix = length(presentation_duration),
             order = avg_first > avg_second ? :longfirst : :shortfirst,
@@ -50,6 +61,7 @@ function load_human_data(path="data/Study3Fred.json")
         )
     end  |> skipmissing |> collect |> Vector{NamedTuple} |> Table
 end
+load_human_data(number::Int) = load_human_data("data/Study$(number)Fred.json")
 
 "Discretize presentation times while preventing rounding error from accumulating"
 function discretize_presentation_times(durations, dt)
@@ -85,6 +97,7 @@ function prepare_trials(data; dt=.01, normalize_value=true)
         t.rt <= max_rt(t)
     end
 end
+
 
 # %% --------
 

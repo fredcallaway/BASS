@@ -30,13 +30,13 @@ load("plot_human.RData")
 ## load simulation data
 # input_file =paste0(basepath, 'model/results/qualitative_sim_may6.csv')
 basepath <- paste0(getwd(), '/../')
-version = "v3"
-input_file = glue('{basepath}model/results/qualitative_sim_{version}.csv')
+version = "v6"
+input_file = glue('{basepath}model/results/qualitative_sim_{version}-2.csv')
 aSIMb <-   read.csv(input_file)
 
 
 # Study 2
-input_file = glue('{basepath}model/results/qualitative_sim_{version}.csv')
+input_file = glue('{basepath}model/results/qualitative_sim_{version}-3.csv')
 aSIMc <-   read.csv(input_file)
 
 figpath = glue('{basepath}figures/Combi_{version}/')

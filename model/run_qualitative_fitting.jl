@@ -1,20 +1,33 @@
 using Distributed
 using ProgressMeter
 
-@everywhere using Revise
-@everywhere includet("qualitative_fitting.jl")
+# %% ==================== Set up ====================
+@everywhere STUDY = 2
+@everywhere version = "v6-$STUDY"
+@everywhere include("qualitative_fitting.jl")
 
-# %% ==================== Simulate models ====================
-@everywhere version = "v3"
+fit_choice_model(human_df)
+fit_rt_model(human_df)
+
 mkpath("tmp/qualitative/$version/")
 
-box = Box(
-    base_precision = (.0005, .01, :log),
-    attention_factor = (0, 1),
-    cost = (.0001, .002, :log),
-    confidence_slope = (0, 0.1),
-    prior_mean = (-1, 0),
-)
+if STUDY == 3
+    box = Box(
+        base_precision = (.0005, .01, :log),
+        attention_factor = (0, 1),
+        cost = (.005, .05, :log),
+        confidence_slope = (0, 0.1),
+        prior_mean = (-1, 0),
+    )
+else
+    box = Box(
+        base_precision = (.01, 1, :log),
+        attention_factor = (0, 1),
+        cost = (.005, .05, :log),
+        confidence_slope = 0,
+        prior_mean = (-1, 1),
+    )
+end
 serialize("tmp/qualitative/$version/box", box)
 
 candidates = map(Iterators.take(SobolSeq(n_free(box)), 10000)) do x
@@ -25,15 +38,20 @@ mkpath("tmp/qualitative/$version/sims")
 @time write_base_sim()
 @everywhere base_sim = deserialize("tmp/qualitative/$version/sims/base")
 
-# %% --------
+# %% ==================== Simulate and run regressions ====================
 
-results = @showprogress pmap(enumerate(candidates)) do (i, m)
+@everywhere on_error(err) = err
+results = @showprogress pmap(enumerate(candidates); on_error) do (i, m)
     sim_df = if isfile("tmp/qualitative/$version/sims/$i")
          load_sim(i)
     else
         x = make_frame(simulate_dataset(m, trials));
         write_sim(i, x)
-        x
+        load_sim(i)
+    end
+    if isnothing(sim_df)
+        @error "Nothing sim_df on job $i"
+        error("Nothing sim_df on job $i")
     end
     @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
     @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
@@ -73,6 +91,7 @@ select_rt = [
     "rel_conf",
     "rel_value & prop_first_presentation"
 ]
+
 rt_idx = coeftable(human_fit_rt).rownms .∈ [select_rt]
 
 loss = map(results) do (choice_fit, rt_fit)
@@ -83,14 +102,14 @@ loss = map(results) do (choice_fit, rt_fit)
 end
 best = argmin(loss)
 @show loss[best]
-candidates[best]
+@show candidates[best];
 
 # %% --------
 rt_intercepts = map(results) do (choice_fit, rt_fit)
     rt_fit.cols[1][1]  # intercept Coef.
 end
-quantile(rt_intercepts)
-coef(human_fit_rt)[1]
+@show quantile(rt_intercepts)
+@show coef(human_fit_rt)[1]
 
 # %% --------
 Table(
@@ -112,17 +131,31 @@ sim_df = make_frame(simulate_dataset(candidates[best], trials; ndt=500))
 
 @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
 @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
-# recompute loss
-@show loss[best]
 
+# recompute loss
+#@show loss[best]
 # DOESN"T INCLUDE RT
 #xx = coeftable(fit_choice_model(sim_df))
 #new_loss = sum(((xx.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2) +
 #@show new_loss
 
 sim_df |> CSV.write("results/qualitative_sim_$version.csv")
+println("wrote results/qualitative_sim_$version.csv")
 
 # %% --------
+
+map(candidates[partialsortperm(loss, 1:100)]) do m
+    (;m.base_precision,
+     m.attention_factor,
+     m.cost,
+     m.confidence_slope,
+     m.prior_mean)
+end |> Table |> print
+
+
+# %% ==================== What is this? ====================
+
+
 function prepare_frame(df)
     Table(
         # subject = categorical(df.subject),
@@ -225,13 +258,4 @@ figure() do
 end
 
 # %% --------
-
-map(candidates[partialsortperm(loss, 1:100)]) do m
-    (;m.base_precision,
-     m.attention_factor,
-     m.cost,
-     m.confidence_slope,
-     m.prior_mean)
-end |> Table
-
 
