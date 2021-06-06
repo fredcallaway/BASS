@@ -78,11 +78,11 @@ function prepare_frame(df)
 end
 
 function fit_choice_model(df)
-    if STUDY == 3
-        formula = @formula(choice==1 ~ (rel_value + avg_value) *
-            (avg_conf + conf_bias + rel_conf + prop_first_presentation) + rt);
+    if STUDY == 3       
+        formula = @formula(choice==1 ~ rel_value + avg_value + rel_conf + avg_conf + prop_first_presentation  + rt +
+            rel_value & avg_conf + rel_conf & avg_value + prop_first_presentation & avg_value);
     elseif STUDY == 2
-        # TODO
+        # TODO: add this @formulat(choice==1 ~ rel_value + prop_first_presentation * (avg_value + rel_value) + rt)
         formula = @formula(choice==1 ~ (rel_value + avg_value) * prop_first_presentation + rt);
     else
         error("Bad STUDY")
@@ -92,8 +92,8 @@ end
 
 function fit_rt_model(df)
     if STUDY == 3
-        formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation +
-                           (avg_conf + rel_conf + conf_bias))
+        formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value + prop_first_presentation + 
+            rel_value & prop_first_presentation)
     elseif STUDY == 2
         # TODO
         formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation)

@@ -92,9 +92,8 @@ mean(aSIMc$totalConfidence, na.rm=T)
 head(a1c$totalConfidence)
 
 
-# %% ==================== Make plots ====================
 
-# Study 1
+# %% ==================== Study 1 Choice ====================
 
 
 Choicemod0SIMb <- glm(isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV + spdfirst:fstosnd, data = aSIMb, 
@@ -152,7 +151,8 @@ pdf(paste0(figpath, "503/RTonBias503SIM.pdf"), width = 8, height = 4)#, units = 
 multiplot(pRTS1,pRTSIM1, cols=2)
 dev.off()
 
-## RT
+# %% ==================== Study 1 RT ====================
+
 
 RTmod0SIM1 <- lm(log(RT*1000)~ spdfirst + sVD + savV + fstosnd + spdfirst:fstosnd, aSIMb, 
                               REML=FALSE)
@@ -169,7 +169,7 @@ pdf(paste0(figpath, "503/RPDbyRVRT503SIM.pdf"), width = 8, height = 4)#, units =
 multiplot(plmodRTRVPDS1, plmodRTRVPDSIM1, cols=2)
 dev.off()
 
-# Study 2
+# %% ==================== Study 2 Choice ====================
 
 
 Choicemod0SIM2 <- glm(isfirstIchosen ~ fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + savV + ConfDif:savV + spdfirst:savV , data = aSIMc, #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
@@ -249,7 +249,7 @@ multiplot( pSetConfS2,pConfDifS2, pSetConfSIM2, pConfDifSIM2, cols=2)
 dev.off()
 
 
-## how about RT?
+# %% ==================== Study 2 RT ====================
 
 RTmod0SIM2 <- lm(log(RT*1000)~   sVD + savV + ConfDif + totalConfidence + fstosnd + spdfirst + fstosnd:spdfirst, aSIMc,
                                 REML=FALSE)

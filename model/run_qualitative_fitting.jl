@@ -61,6 +61,11 @@ results = @showprogress pmap(enumerate(candidates); on_error) do (i, m)
 end;
 length(results)
 
+err_rate = mean(isa.(results, Exception))
+if err_rate > 0
+    @error "Error rate: $err_rate"
+end
+
 # %% ==================== Compare to model fit to human ====================
 
 human_fit_choice = fit_choice_model(human_df)
@@ -71,63 +76,65 @@ human_fit_rt = fit_rt_model(human_df)
 human_coef_rt = coef(human_fit_rt)
 human_err_rt = stderror(human_fit_rt)
 
-select_choice = [
-    "(Intercept)",
-    "rel_value",
-    "avg_value",
-    "rel_conf",
-    "rel_value & avg_conf",
-    "avg_value & rel_conf",
-    "avg_value & prop_first_presentation"
-]
-choice_idx = coeftable(human_fit_choice).rownms .∈ [select_choice]
+#select_choice = [
+#    "(Intercept)",
+#    "rel_value",
+#    "avg_value",
+#    "rel_conf",
+#    "rel_value & avg_conf",
+#    "avg_value & rel_conf",
+#    "avg_value & prop_first_presentation"
+#]
+#choice_idx = coeftable(human_fit_choice).rownms .∈ [select_choice]
 
-select_rt = [
-    "(Intercept)",
-    "abs_rel_value",
-    "avg_value",
-    "prop_first_presentation",
-    "avg_conf",
-    "rel_conf",
-    "rel_value & prop_first_presentation"
-]
+#select_rt = [
+#    "(Intercept)",
+#    "abs_rel_value",
+#    "avg_value",
+#    "prop_first_presentation",
+#    "avg_conf",
+#    "rel_conf",
+#    "rel_value & prop_first_presentation"
+#]
+#rt_idx = coeftable(human_fit_rt).rownms .∈ [select_rt]
 
-rt_idx = coeftable(human_fit_rt).rownms .∈ [select_rt]
+function choice_loss(fit)
+    err = fit.cols[1] .- human_coef_choice
+    weight = 1 ./ human_err_choice
+    (err .* weight) .^ 2
+end
+
+function rt_loss(fit)
+    err = fit.cols[1] .- human_coef_rt
+    weight = 1 ./ human_err_rt
+    (err .* weight) .^ 2
+end
 
 loss = map(results) do (choice_fit, rt_fit)
-    choice_loss = sum(((choice_fit.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2)
-    rt_loss = sum(((rt_fit.cols[1][rt_idx] .- human_coef_rt[rt_idx]) ./ human_err_rt[rt_idx]) .^ 2)
-    choice_loss + rt_loss
-    #choice_loss
+    sum(choice_loss(choice_fit)) + sum(rt_loss(rt_fit))
 end
 best = argmin(loss)
 @show loss[best]
 @show candidates[best];
 
 # %% --------
-rt_intercepts = map(results) do (choice_fit, rt_fit)
-    rt_fit.cols[1][1]  # intercept Coef.
-end
-@show quantile(rt_intercepts)
-@show coef(human_fit_rt)[1]
-
-# %% --------
+println("\n----- CHOICE LOSS -----")
 Table(
     predictor=coeftable(human_fit_choice).rownms,
     human=coef(human_fit_choice),
     model=results[best].choice_fit.cols[1],
-    loss= choice_idx .* ((results[best].choice_fit.cols[1] .- human_coef_choice) ./ human_err_choice) .^ 2
-)
-
+    loss=choice_loss(results[best].choice_fit)
+) |> print
+println("\n----- RT LOSS -----")
 Table(
     predictor=coeftable(human_fit_rt).rownms,
     human=coef(human_fit_rt),
     model=results[best].rt_fit.cols[1],
-    loss= rt_idx .* ((results[best].rt_fit.cols[1] .- human_coef_rt) ./ human_err_rt) .^ 2
-)
+    loss=rt_loss(results[best].rt_fit)
+) |> print
 
 # %% --------
-sim_df = make_frame(simulate_dataset(candidates[best], trials; ndt=500))
+sim_df = make_frame(simulate_dataset(candidates[best], trials))
 
 @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
 @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
