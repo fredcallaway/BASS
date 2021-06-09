@@ -6,23 +6,17 @@ using Parameters
 "Bayesian Drift Diffusion Model"
 @with_kw struct BDDM
     N::Int = 2                            # number of items
-    base_precision::Float64 = 0.3         # precision per second of attended item with confidence=1
+    base_precision::Float64 = 0.3         # precision per second of attended item with confidence=0
     attention_factor::Float64 = 1.        # down-weighting of precision for unattended item (less than 1)
     cost::Float64 = 0.1                   # cost per second
     risk_aversion::Float64 = 0            # scales penalty for variance of chosen item
     confidence_slope::Float64 = 0.        # how much does confidence increase your precision?
-    over_confidence::Float64 = 0.         # treat observations as though they were more or less noisy 
-    over_confidence_slope::Float64 = 0.   # treat observations as though they were more or less noisy 
+    subjective_offset::Float64 = 0.       # additive offset to base_precision for subjective confidence
+    subjective_slope::Float64 = 1.        # scales confidence_slope for subjective confidence
     prior_mean::Float64 = 0.
     prior_precision::Float64 = 1.
     tmp::Vector{Float64} = zeros(N) # implementation detail, for memory-efficiency
 end
-
-# .025 -> .0075
-
-# base_precision = 0.3
-# cost = 0.1
-
 
 "The state of the BDDM."
 struct State
@@ -140,9 +134,15 @@ initialize!(pol::CantStopWontStop, t::Trial) = nothing
 
 # ---------- Simulation ---------- #
 
-"Precision of one sample, including confidence but nott attention"
-function base_precision(m, t)
+"Precision of one sample, including confidence but not attention"
+function objective_confidence(m, t)
     @. t.dt * (m.base_precision + m.confidence_slope * t.confidence)
+end
+
+"*Perceived* precision of one sample"
+function subjective_confidence(m, t)
+    @. t.dt * (m.base_precision + m.subjective_offset + m.subjective_slope * m.confidence_slope * t.confidence)
+
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
@@ -160,15 +160,14 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     time_step = 0
     states = State[]
     presentation_durations = save_presentation ? [time_to_switch] : nothing
-    objective_precision = base_precision(m, t)
+    obj_conf = objective_confidence(m, t)
+    subj_conf = subjective_confidence(m, t)
 
     # objective_precision = @. m.base_precision * t.confidence ^ m.confidence_slope
     # subjective_precision = @. (m.base_precision + m.over_confidence_intercept) + 
                                # (m.confidence_slope + m.over_confidence_slope) * t.confidence
 
     attention = zeros(m.N); λ_objective = zeros(m.N); λ_subjective = zeros(m.N)
-
-    λ_subjective = λ_objective  # disabling subjective confidence
 
     while true
         save_states && push!(states, copy(s))
@@ -179,9 +178,8 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
             first_fix = false
         end
         set_attention!(attention, m, attended_item, first_fix)
-        @. λ_objective = objective_precision * attention
-        # @. λ_subjective = subjective_precision * subjective_confidence * attention
-        # @. λ_subjective = subjective_precision * subjective_confidence * attention
+        @. λ_objective = obj_conf * attention
+        @. λ_subjective = subj_conf * attention
         update!(m, s, t.value, λ_objective, λ_subjective)
         time_to_switch -= 1
         stop(pol, s, t) && break
