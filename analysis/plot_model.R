@@ -30,19 +30,20 @@ load("plot_human.RData")
 ## load simulation data
 # input_file =paste0(basepath, 'model/results/qualitative_sim_may6.csv')
 basepath <- paste0(getwd(), '/../')
-version = "v6"
-input_file = glue('{basepath}model/results/qualitative_sim_{version}-2.csv')
+version = "v7-full"
+input_file = glue('{basepath}model/results/qualitative_sim_{version}-3.csv')
+print("WARNING: USING STUDY 3 FOR STUDY 2")
 aSIMb <-   read.csv(input_file)
-
 
 # Study 2
 input_file = glue('{basepath}model/results/qualitative_sim_{version}-3.csv')
 aSIMc <-   read.csv(input_file)
 
 figpath = glue('{basepath}figures/Combi_{version}/')
-figpath
+print(glue("Saving figures to {figpath}"))
 dir.create(paste0(figpath, "503"), recursive=T)
 dir.create(paste0(figpath, "504"), recursive=T)
+
 
 #length(aSIM$subject[aSIM$subject==1064])
 
@@ -90,6 +91,14 @@ mean(a1c$totalConfidence, na.rm=T)
 mean(aSIMc$totalConfidence, na.rm=T)
 
 head(a1c$totalConfidence)
+
+
+# %% --------
+
+library(tidyverse)
+as.tibble(a1c) %>% 
+  ggplot(aes(sumConfidence, log(1000*RT))) +
+  stat_summary(fun.data=mean_cl_boot)
 
 
 

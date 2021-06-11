@@ -29,7 +29,7 @@ end
 
 data = load_human_data(STUDY)
 human_df = make_frame(data)
-trials = repeat(prepare_trials(Table(data); dt=.025), 10);
+trials = repeat(prepare_trials(Table(data); dt=.1), 10);
 
 rt_μ, rt_σ = juxt(mean, std)(human_df.pt1 + human_df.pt2)
 val_μ, val_σ = juxt(mean, std)(flatten(data.value))

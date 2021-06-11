@@ -2,8 +2,9 @@ using Distributed
 using ProgressMeter
 
 # %% ==================== Set up ====================
-@everywhere STUDY = 2
-@everywhere version = "v6-$STUDY"
+@everywhere STUDY = 3
+@everywhere MODEL = :full
+@everywhere version = "v7-$MODEL-$STUDY"
 @everywhere include("qualitative_fitting.jl")
 
 fit_choice_model(human_df)
@@ -11,23 +12,33 @@ fit_rt_model(human_df)
 
 mkpath("tmp/qualitative/$version/")
 
-if STUDY == 3
-    box = Box(
+boxes = Dict(
+    :full => Box(
         base_precision = (.0005, .01, :log),
         attention_factor = (0, 1),
         cost = (.005, .05, :log),
         confidence_slope = (0, 0.1),
-        prior_mean = (-1, 0),
-    )
-else
-    box = Box(
-        base_precision = (.01, 1, :log),
+        prior_mean = (-2, 0),
+    ),
+    :no_conf => Box(
+        base_precision = (.01, 0.5, :log),
         attention_factor = (0, 1),
         cost = (.005, .05, :log),
         confidence_slope = 0,
-        prior_mean = (-1, 1),
+        prior_mean = (-2, 0),
+    ),
+    :no_meta => Box(
+        base_precision = (.001, 0.5, :log),
+        attention_factor = (0, 1),
+        cost = (.005, .05, :log),
+        confidence_slope = (0, 0.1),
+        prior_mean = (-2, 0),
+        subjective_slope = 0,
+        subjective_offset = (.01, 1, :log)
     )
-end
+)
+
+box = boxes[MODEL]
 serialize("tmp/qualitative/$version/box", box)
 
 candidates = map(Iterators.take(SobolSeq(n_free(box)), 10000)) do x
@@ -76,28 +87,6 @@ human_fit_rt = fit_rt_model(human_df)
 human_coef_rt = coef(human_fit_rt)
 human_err_rt = stderror(human_fit_rt)
 
-#select_choice = [
-#    "(Intercept)",
-#    "rel_value",
-#    "avg_value",
-#    "rel_conf",
-#    "rel_value & avg_conf",
-#    "avg_value & rel_conf",
-#    "avg_value & prop_first_presentation"
-#]
-#choice_idx = coeftable(human_fit_choice).rownms .∈ [select_choice]
-
-#select_rt = [
-#    "(Intercept)",
-#    "abs_rel_value",
-#    "avg_value",
-#    "prop_first_presentation",
-#    "avg_conf",
-#    "rel_conf",
-#    "rel_value & prop_first_presentation"
-#]
-#rt_idx = coeftable(human_fit_rt).rownms .∈ [select_rt]
-
 function choice_loss(fit)
     err = fit.cols[1] .- human_coef_choice
     weight = 1 ./ human_err_choice
@@ -107,6 +96,7 @@ end
 function rt_loss(fit)
     err = fit.cols[1] .- human_coef_rt
     weight = 1 ./ human_err_rt
+    weight[5] *= 2
     (err .* weight) .^ 2
 end
 
@@ -116,38 +106,54 @@ end
 best = argmin(loss)
 @show loss[best]
 @show candidates[best];
+serialize("tmp/qualitative/$version/best", candidates[best])
 
 # %% --------
+
+function choice_loss_table(fit)
+    Table(
+        predictor=coeftable(human_fit_choice).rownms,
+        human=coef(human_fit_choice),
+        model=fit.cols[1],
+        loss=choice_loss(fit)
+    )
+end
+
+function rt_loss_table(fit)
+    Table(
+        predictor=coeftable(human_fit_rt).rownms,
+        human=coef(human_fit_rt),
+        model=fit.cols[1],
+        loss=rt_loss(fit)
+    )
+end
+
 println("\n----- CHOICE LOSS -----")
-Table(
-    predictor=coeftable(human_fit_choice).rownms,
-    human=coef(human_fit_choice),
-    model=results[best].choice_fit.cols[1],
-    loss=choice_loss(results[best].choice_fit)
-) |> print
+choice_loss_table(results[best].choice_fit) |> println
 println("\n----- RT LOSS -----")
-Table(
-    predictor=coeftable(human_fit_rt).rownms,
-    human=coef(human_fit_rt),
-    model=results[best].rt_fit.cols[1],
-    loss=rt_loss(results[best].rt_fit)
-) |> print
-
+rt_loss_table(results[best].rt_fit) |> println
 # %% --------
-sim_df = make_frame(simulate_dataset(candidates[best], trials))
 
-@. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
-@. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
+function write_sim(model, tag="")
+    df = make_frame(simulate_dataset(model, trials))
+    @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
+    @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
+    fn = "results/qualitative_sim_$version$tag.csv"
+    df |> CSV.write(fn)
+    println("wrote $fn")
+    df
+end
 
-# recompute loss
-#@show loss[best]
-# DOESN"T INCLUDE RT
-#xx = coeftable(fit_choice_model(sim_df))
-#new_loss = sum(((xx.cols[1][choice_idx] .- human_coef_choice[choice_idx]) ./ human_err_choice[choice_idx]) .^ 2) +
-#@show new_loss
+function lesion_confidence(model)
+    mutate(model,
+        base_precision = model.base_precision + model.confidence_slope * mean(human_df.conf1),
+        confidence_slope = 0
+    )
+end
 
-sim_df |> CSV.write("results/qualitative_sim_$version.csv")
-println("wrote results/qualitative_sim_$version.csv")
+write_sim(candidates[best]);
+#write_sim(lesion_confidence(candidates[best]), "-lesion_conf");
+
 
 # %% --------
 
