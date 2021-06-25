@@ -96,7 +96,7 @@ end
 function rt_loss(fit)
     err = fit.cols[1] .- human_coef_rt
     weight = 1 ./ human_err_rt
-    weight[5] *= 2
+    #weight[5] *= 2
     (err .* weight) .^ 2
 end
 
@@ -166,7 +166,8 @@ map(candidates[partialsortperm(loss, 1:100)]) do m
 end |> Table |> print
 
 
-# %% ==================== What is this? ====================
+
+# %% ==================== What is all this nonsense? ====================
 
 
 function prepare_frame(df)

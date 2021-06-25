@@ -92,6 +92,7 @@ end
 
 function fit_rt_model(df)
     if STUDY == 3
+        #formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value)
         formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value + prop_first_presentation + 
             rel_value & prop_first_presentation)
     elseif STUDY == 2

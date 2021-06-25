@@ -22,14 +22,13 @@ include("sobol_search.jl")
 #     prior_mean = (-1, 1),
 # )
 box = Box(
-    base_precision = (.01, .15, :log),
-    attention_factor = (0.5, 1),
-    cost = (.005, .015),
-    confidence_slope = (0, 0.05),
-    prior_mean = (-1, 0),
+    base_precision = (.01, .5, :log),
+    attention_factor = (0, 1),
+    cost = (.005, .05, :log),
+    prior_mean = (-2, 0),
 )
 
 # run_sobol_group(BDDM, "test", box, 10, repeats=1, dt=.05, tol=20)
 # run_sobol_group(BDDM, "v11", box, 5000, repeats=10, dt=.025, tol=0)
 # run_sobol_group(BDDM, "v12", box, 5000, repeats=10, dt=.025, tol=0)
-run_sobol_ind(BDDM, "v12", box, 5000, repeats=10, dt=.025, tol=0)
+run_sobol_ind(BDDM, "v13", box, 5000, repeats=10, dt=.025, tol=0, data=load_human_data(2))

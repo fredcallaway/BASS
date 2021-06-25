@@ -149,7 +149,7 @@ end
 function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), 
                   save_states=false, save_presentation=false)
     if t isa HumanTrial
-        error("Trying to simulate a HumanTrial")
+        #error("Trying to simulate a HumanTrial")
         max_step = min(max_step, t.rt)
     end
     initialize!(pol, t)

@@ -96,8 +96,7 @@ function prepare_trials(data; dt=.01, normalize_value=true)
         # this can happen due to rounding error
         t.rt <= max_rt(t)
     end
-end
-
+end 
 
 # %% --------
 
