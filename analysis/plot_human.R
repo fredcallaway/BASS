@@ -253,6 +253,15 @@ pdf(paste0(basepath, "figures/RPDbyRVRT503.pdf"), width = 5, height = 4)#, units
 plmodRTRVPDS1
 dev.off()
 
+eff_df <- Effect(c("savV"), RTmod0, xlevels=list(savV =seq(min(a1b$savV ), max(a1b$savV), 0.1)) )
+IA <- as.data.frame(eff_df)
+
+plmodRTbyOV1 <- ggplot(data=IA, aes(x=savV, y=fit)) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+
+  geom_vline(xintercept=0, linetype=2, size=0.2)+ xlab("Overall value") + ylab("log RT") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position="right") 
+pdf(paste0(basepath, "figures/RTbyOV503.pdf"), width = 5, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
+plmodRTbyOV1
+dev.off()
+
 
 
 ### Now we do that same thing for Version 504

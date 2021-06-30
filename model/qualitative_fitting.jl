@@ -82,6 +82,7 @@ function fit_choice_model(df)
         formula = @formula(choice==1 ~ rel_value + avg_value + rel_conf + avg_conf + prop_first_presentation  + rt +
             rel_value & avg_conf + rel_conf & avg_value + prop_first_presentation & avg_value);
     elseif STUDY == 2
+        #isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV + spdfirst:fstosnd
         # TODO: add this @formulat(choice==1 ~ rel_value + prop_first_presentation * (avg_value + rel_value) + rt)
         formula = @formula(choice==1 ~ (rel_value + avg_value) * prop_first_presentation + rt);
     else
@@ -96,8 +97,8 @@ function fit_rt_model(df)
         formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value + prop_first_presentation + 
             rel_value & prop_first_presentation)
     elseif STUDY == 2
-        # TODO
-        formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation)
+        formula = @formula(log1000rt ~ abs_rel_value + avg_value)
+        #formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation)
     else
         error("Bad STUDY")
     end 

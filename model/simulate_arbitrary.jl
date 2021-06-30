@@ -7,6 +7,10 @@ using Serialization
 
 # %% --------
 
+function empirical_prior(data; α=1)
+    μ, σ = juxt(mean, std)(flatten(data.value))
+    α * μ, σ
+end
 
 function make_frame(data)
    map(data) do d
@@ -29,31 +33,62 @@ function simulate_dataset(m, trials; ndt=0)
     end
 end
 
-function write_sim(model, study)
-    data = load_human_data(study)
-    trials = repeat(prepare_trials(Table(data); dt=.1), 10);
-    val_μ, val_σ = juxt(mean, std)(flatten(data.value))
-
+function write_sim(model, data; normalize_value=false)
+    trials = repeat(prepare_trials(Table(data); dt=.1, normalize_value), 5);
     df = make_frame(simulate_dataset(model, trials))
-    @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
-    @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
+    if normalize_value
+        # unnomrmalize it
+        val_μ, val_σ = empirical_prior(data)
+        @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
+        @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
+    end
     fn = "results/hand_sim_$study.csv"
     df |> CSV.write(fn)
     println("wrote $fn")
     df
 end
 
+
 # %% ==================== Study 1 main ====================
 
-#m = deserialize("tmp/v7-2-best")
+data2 = load_human_data(2)
+μ, σ = empirical_prior(data2, α=1)
+
+m = deserialize("tmp/v7-2-best")
 m = BDDM(
     base_precision = 0.25,
     attention_factor = 0.8,
     cost = .02,
-    prior_mean = -0.1,
-    risk_aversion=.3  # TODO
+    prior_mean = -.2,
+    prior_precision = 1,
+    #risk_aversion=.3  # TODO
 )
-write_sim(m, 2)
+write_sim(m, data2; normalize_value=true)
+
+# %% --------
+
+data2 = load_human_data(2)
+μ, σ = empirical_prior(data2, α=0.8)
+
+m = BDDM(
+    base_precision = .05,
+    attention_factor = 0.8,
+    cost = .05,
+    prior_mean = μ,
+    prior_precision = 1 / σ^2,
+    #prior_precision = 1 / σ^2,
+)
+write_sim(m, data2)
+
+# %% --------
+m = BDDM(
+    base_precision = 0.25 / σ^2,
+    attention_factor = 0.8,
+    cost = .02 * σ,
+    prior_mean = μ,
+    prior_precision = 1 / σ^2,
+)
+
 
 # %% ==================== Study 1 zero prior ====================
 
@@ -82,18 +117,20 @@ write_sim(m, 3)
 
 
 
-
-
-
-
-
-
-
+# %% --------
 
 
 
 
 # %% ==================== Scratch ====================
+
+data = load_human_data(2)
+trials = repeat(prepare_trials(Table(data); dt=.1), 10);
+val_μ, val_σ = juxt(mean, std)(flatten(data.value))
+
+
+
+# %% --------
 
 m = deserialize("tmp/v7-3-best")
 

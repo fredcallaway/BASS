@@ -50,6 +50,7 @@ figure("diffusion") do
     plot(plots...)
 end
 
+
 # %% ==================== likelihood ====================
 
 subj = first(unique(t.subject for t in trials))
@@ -82,7 +83,6 @@ figure() do
     histogram!(filter(x->x.choice == 2, S).rt; bins=-1:rt, lw=0, alpha=0.5, color="#E54545", label="choose second")
     histogram!(filter(x->x.choice == 1, S).rt; bins=-1:rt, lw=0, alpha=0.5, color="#36B5FF", label="choose first")
 end
-
 # %% ==================== ADDM ====================
 
 data = group(d->d.subject, all_data) |> first

@@ -2,8 +2,8 @@ using Distributed
 using ProgressMeter
 
 # %% ==================== Set up ====================
-@everywhere STUDY = 3
-@everywhere MODEL = :full
+@everywhere STUDY = 2
+@everywhere MODEL = :no_conf
 @everywhere version = "v7-$MODEL-$STUDY"
 @everywhere include("qualitative_fitting.jl")
 
@@ -94,25 +94,17 @@ human_err_rt = stderror(human_fit_rt)
 function choice_loss(fit)
     err = fit.cols[1] .- human_coef_choice
     weight = 1 ./ human_err_choice
+    weight[4] *= 3
     (err .* weight) .^ 2
 end
 
 function rt_loss(fit)
     err = fit.cols[1] .- human_coef_rt
     weight = 1 ./ human_err_rt
-    weight[5] *= 2
+    #weight[3] *= 
     (err .* weight) .^ 2
 end
 
-loss = map(results) do (choice_fit, rt_fit)
-    sum(choice_loss(choice_fit)) + sum(rt_loss(rt_fit))
-end
-best = argmin(loss)
-@show loss[best]
-@show candidates[best];
-serialize("tmp/qualitative/$version/best", candidates[best])
-
-# %% --------
 
 function choice_loss_table(fit)
     Table(
@@ -132,10 +124,22 @@ function rt_loss_table(fit)
     )
 end
 
+loss = map(results) do (choice_fit, rt_fit)
+    mean(choice_loss(choice_fit)) + mean(rt_loss(rt_fit))
+end
+best = argmin(loss)
+@show loss[best]
+@show candidates[best];
+
 println("\n----- CHOICE LOSS -----")
 choice_loss_table(results[best].choice_fit) |> println
 println("\n----- RT LOSS -----")
 rt_loss_table(results[best].rt_fit) |> println
+
+serialize("tmp/qualitative/$version/best", candidates[best])
+
+# %% --------
+
 # %% --------
 
 function write_sim(model, tag="")

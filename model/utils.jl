@@ -46,6 +46,7 @@ dictvalues(d::Dict) = (collect(values(d))...,)
 round1(x) = round(x; digits=1)
 round2(x) = round(x; digits=2)
 round3(x) = round(x; digits=3)
+round4(x) = round(x; digits=4)
 
 fillmissing(x, rep) = ismissing(x) ? rep : x
 fillmissing(rep) = x-> ismissing(x) ? rep : x

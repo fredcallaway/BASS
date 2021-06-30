@@ -30,13 +30,13 @@ load("plot_human.RData")
 ## load simulation data
 # input_file =paste0(basepath, 'model/results/qualitative_sim_may6.csv')
 basepath <- paste0(getwd(), '/../')
-version = "v7-full"
-input_file = glue('{basepath}model/results/qualitative_sim_{version}-3.csv')
+version = "hand"
+input_file = glue('{basepath}model/results/hand_sim_2.csv')
 print("WARNING: USING STUDY 3 FOR STUDY 2")
 aSIMb <-   read.csv(input_file)
 
 # Study 2
-input_file = glue('{basepath}model/results/qualitative_sim_{version}-3.csv')
+input_file = glue('{basepath}model/results/hand_sim_3.csv')
 aSIMc <-   read.csv(input_file)
 
 figpath = glue('{basepath}figures/Combi_{version}/')
@@ -91,16 +91,6 @@ mean(a1c$totalConfidence, na.rm=T)
 mean(aSIMc$totalConfidence, na.rm=T)
 
 head(a1c$totalConfidence)
-
-
-# %% --------
-
-library(tidyverse)
-as.tibble(a1c) %>% 
-  ggplot(aes(sumConfidence, log(1000*RT))) +
-  stat_summary(fun.data=mean_cl_boot)
-
-
 
 # %% ==================== Study 1 Choice ====================
 
@@ -292,6 +282,15 @@ plmodfstbtTCSIM2 <- ggplot(data=IA, aes(x=totalConfidence, y=fit)) + geom_line()
 
 pdf(paste0(figpath, "504/RTConfAllSIM.pdf"), width = 8, height = 8)#, units = 'cm', res = 200, compression = 'lzw'
 multiplot(plmodfstbtTCS2, plmodfstbtCDS2,plmodfstbtTCSIM2, plmodfstbtCDSIM2,  cols =2)
+dev.off()
+
+eff_df <- Effect(c("fstosnd"), RTmod0SIM2, xlevels=list(savV =seq(min(aSIMb$fstosnd ), max(aSIMb$fstosnd), 0.1)) )
+IA <- as.data.frame(eff_df)
+
+plmodRTRVPDSIM2 <- ggplot(data=IA, aes(x=fstosnd, y=fit)) + geom_line()+scale_colour_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+# ylim(-0.5, 1.5)+
+  scale_fill_manual(name="Relative\nfirst item\npresentation", values=darkcolssub) + geom_vline(xintercept=0, linetype=2, size=0.2)+ xlab("Relative value") + ylab("log RT") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position="right") 
+pdf(paste0(figpath, "503/RPDbyRT503SIM.pdf"), width = 8, height = 4)#, units = 'cm', res = 200, compression = 'lzw'
+multiplot(plmodRTRVPDS2, plmodRTRVPDSIM2, cols=2)
 dev.off()
 
 
