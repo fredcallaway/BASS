@@ -12,6 +12,10 @@ fit_rt_model(human_df)
 
 mkpath("tmp/qualitative/$version/")
 
+if STUDY == 2
+    @assert MODEL == :no_conf
+end
+
 boxes = Dict(
     :full => Box(
         base_precision = (.0005, .01, :log),
@@ -96,7 +100,7 @@ end
 function rt_loss(fit)
     err = fit.cols[1] .- human_coef_rt
     weight = 1 ./ human_err_rt
-    #weight[5] *= 2
+    weight[5] *= 2
     (err .* weight) .^ 2
 end
 
