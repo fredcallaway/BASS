@@ -6,7 +6,7 @@ include("box.jl")
 using Serialization
 
 # %% --------
-version = "jun30"
+version = "jul2"
 mkpath("results/$version")
 
 function empirical_prior(data; α=1)
@@ -35,8 +35,8 @@ function simulate_dataset(m, trials; ndt=0)
     end
 end
 
-function write_sim(model, data, name; normalize_value=false)
-    trials = repeat(prepare_trials(Table(data); dt=.1, normalize_value), 5);
+function write_sim(model, data, name; normalize_value=false, repeats=30)
+    trials = repeat(prepare_trials(Table(data); dt=.025, normalize_value), repeats);
     df = make_frame(simulate_dataset(model, trials))
     if normalize_value
         # unnomrmalize it
@@ -51,6 +51,10 @@ function write_sim(model, data, name; normalize_value=false)
 end
 
 # %% ==================== Study 1 main ====================
+
+
+#Rating Study 1: mean 4.789534
+#SD 3.007145
 
 data1 = load_human_data(2)
 μ, σ = empirical_prior(data1, α=0.8)
@@ -78,9 +82,9 @@ write_sim(m1_main, data1, "1-main")
 
 #m = deserialize("tmp/v7-2-best")
 m1_flat = mutate(m1_main,
-    prior_precision = 1e-3
+    prior_precision = 1e-6
 )
-write_sim(m1_flat, data1, "1-flatprior")
+df = write_sim(m1_flat, data1, "1-flatprior")
 
 # %% ==================== Study 1 zero prior ====================
 
@@ -91,6 +95,8 @@ m1_zero = mutate(m1_main,
 write_sim(m1_zero, data1, "1-zeroprior")
 
 # %% ==================== Study 2 main ====================
+#Study2: 5.134873
+#3.069003
 
 data2 = load_human_data(3)
 μ, σ = empirical_prior(data2, α=0.7)
@@ -106,23 +112,23 @@ m2_main = BDDM(
 df = write_sim(m2_main, data2, "2-main")
 println(mean(log.(1000 * df.rt)))
 
-# %% ==================== Study 2 dumb confidence ====================
+# %% ==================== Study 2 no metacognition ====================
 
 avg_confidence = m2_main.confidence_slope * mean(flatten(data2.confidence))
-m2_dumb = mutate(m2_main,
+m2_nometa = mutate(m2_main,
     subjective_slope = 0,
     subjective_offset = avg_confidence
 )
-df = write_sim(m2_dumb, data2, "2-dumbconf")
+df = write_sim(m2_nometa, data2, "2-nometa")
 
-# %% ==================== Study 2 average confidence ====================
+# %% ==================== Study 2 null confidence ====================
 
-avg_confidence = m2_main.confidence_slope * mean(flatten(data2.confidence))
-m2_dumb = mutate(m2_main,
+m2_null = mutate(m2_main,
     confidence_slope = 0,
-    base_precision = m2_main.base_precision + m2_main.confidence_slope * mean(flatten(data2.confidence))
+    base_precision = m2_main.base_precision + avg_confidence
 )
-df = write_sim(m2_dumb, data2, "2-averageconf")
+df = write_sim(m2_null, data2, "2-ignoreconf")
+
 
 # %% ==================== Scratch ====================
 
