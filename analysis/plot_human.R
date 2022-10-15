@@ -109,8 +109,6 @@ a1c$csndConfidence <- scale(a1c$sndConfidence, scale=FALSE, center = TRUE)
 a1c$ConfDif <- a1c$fstConfidence-a1c$sndConfidence# don't center
 
 
-
-
 ## data descriptions
 
 nTrials <- ddply(a1b, .(SubNum), summarise,
@@ -551,3 +549,6 @@ plmodfstbt<- ggplot(data=IA, aes(x=fstosnd, y=fit , color= cConfBias)) + geom_li
 multiplot(plmodfstbtCB, plmodfstbt, cols=2)
 
 save.image(file="plot_human.Rdata")
+
+
+
