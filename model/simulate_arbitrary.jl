@@ -4,9 +4,10 @@ include("dc.jl")
 include("data.jl")
 include("box.jl")
 using Serialization
+using CSV
 
 # %% --------
-version = "jul2"
+version = "dec15"
 mkpath("results/$version")
 
 function empirical_prior(data; α=1)
@@ -35,7 +36,7 @@ function simulate_dataset(m, trials; ndt=0)
     end
 end
 
-function write_sim(model, data, name; normalize_value=false, repeats=30)
+function make_sim(model, data; normalize_value=false, repeats=30)
     trials = repeat(prepare_trials(Table(data); dt=.025, normalize_value), repeats);
     df = make_frame(simulate_dataset(model, trials))
     if normalize_value
@@ -44,14 +45,21 @@ function write_sim(model, data, name; normalize_value=false, repeats=30)
         @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
         @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
     end
+    df
+end
+
+
+function write_sim(model, data, name; normalize_value=false, repeats=30)
+    df = make_sim(model, data; normalize_value, repeats)
     fn = "results/$version/$name.csv"
     df |> CSV.write(fn)
     println("wrote $fn")
     df
 end
 
-# %% ==================== Study 1 main ====================
 
+
+# %% ==================== Study 1 main ====================
 
 #Rating Study 1: mean 4.789534
 #SD 3.007145
@@ -65,9 +73,12 @@ m1_main = BDDM(
     cost = .05,
     prior_mean = μ,
     prior_precision = 1 / σ^2,
-    #prior_precision = 1 / σ^2,
 )
-write_sim(m1_main, data1, "1-main")
+
+df = write_sim(m1_main, data1, "1-main")
+# %% --------
+
+
 
 #m = BDDM(
 #    base_precision = 0.25 / σ^2,
@@ -109,8 +120,8 @@ m2_main = BDDM(
     prior_precision = 1 / σ^2
 )
 
-df = write_sim(m2_main, data2, "2-main")
-println(mean(log.(1000 * df.rt)))
+df = write_sim(m2_main, data2, "2-main", repeats=100)
+lm(@formula(log(rt) ~ conf1+conf2), df)
 
 # %% ==================== Study 2 no metacognition ====================
 
@@ -129,14 +140,46 @@ m2_null = mutate(m2_main,
 )
 df = write_sim(m2_null, data2, "2-ignoreconf")
 
+# %% ==================== Study 2 overconfidence ====================
+
+function make_sim(models::Vector{BDDM}, data; kws...)
+    mapreduce(vcat, models) do model
+        df = make_sim(model, data; kws...)
+        Table(df; 
+            subjective_offset = fill(model.subjective_offset, length(df)),
+            subjective_slope = fill(model.subjective_slope, length(df))
+        )
+    end
+end
+
+over_models = map(0:.005:.04) do subjective_offset
+    mutate(m2_main; subjective_offset)
+end
+
+df = write_sim(over_models, data2, "2-overconf"; repeats=5)
+
+# %% ==================== Study 2 overconfidence-slope ====================
+
+slope_over_models = map(.6:.2:1.4) do subjective_slope
+    mutate(m2_main; subjective_slope)
+end
+
+df = write_sim(slope_over_models, data2, "2-overconfslope"; repeats=5)
+
+# %% ==================== Study 2 no bias ====================
+
+m2_nobias = mutate(m2_main,
+    prior_mean = empirical_prior(data2)[1]
+    #confidence_slope = 0,
+    #base_precision = m2_main.base_precision + avg_confidence
+)
+df = write_sim(m2_nobias, data2, "2-nobias")
 
 # %% ==================== Scratch ====================
 
 data = load_human_data(2)
 trials = repeat(prepare_trials(Table(data); dt=.1), 10);
 val_μ, val_σ = juxt(mean, std)(flatten(data.value))
-
-
 
 # %% --------
 
