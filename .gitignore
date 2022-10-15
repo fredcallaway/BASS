@@ -12,3 +12,5 @@ tmp/
 model/figs/
 analysis/plot_human.Rdata
 figures/
+
+model/pda.jl

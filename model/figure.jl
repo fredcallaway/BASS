@@ -51,24 +51,24 @@ function toggle_watch()
 end
 
 
-function Plots.heatmap(X::KeyedArray{<:Real,2}; kws...)
-    ylabel, xlabel = dimnames(X)
-    heatmap(reverse(axiskeys(X))..., X; xlabel, ylabel, kws...)
-end
+#function Plots.heatmap(X::KeyedArray{<:Real,2}; kws...)
+#    ylabel, xlabel = dimnames(X)
+#    heatmap(reverse(axiskeys(X))..., X; xlabel, ylabel, kws...)
+#end
 
-function Plots.plot(x::KeyedArray{<:Real,1}; kws...)
-    plot(axiskeys(x, 1), collect(x); xlabel=string(dimnames(x, 1)), kws...)
-end
+#function Plots.plot(x::KeyedArray{<:Real,1}; kws...)
+#    plot(axiskeys(x, 1), collect(x); xlabel=string(dimnames(x, 1)), kws...)
+#end
 
-function Plots.plot(X::KeyedArray{<:Real,2}; kws...)
-    k = dimnames(X, 2)
-    plot(axiskeys(X, 1), collect(X);
-        xlabel=dimnames(X, 1),
-        label=reshape(["$k=$v" for v in axiskeys(X, 2)], 1, :),
-        palette=collect(cgrad(:viridis, size(X, 2), categorical = true)),
-        kws...
-    )
-end
+#function Plots.plot(X::KeyedArray{<:Real,2}; kws...)
+#    k = dimnames(X, 2)
+#    plot(axiskeys(X, 1), collect(X);
+#        xlabel=dimnames(X, 1),
+#        label=reshape(["$k=$v" for v in axiskeys(X, 2)], 1, :),
+#        palette=collect(cgrad(:viridis, size(X, 2), categorical = true)),
+#        kws...
+#    )
+#end
 
 function plot_grid(f::Function, rows, cols; size=(300, 300))
     ps = map(Iterators.product(rows, cols)) do (r, c)
