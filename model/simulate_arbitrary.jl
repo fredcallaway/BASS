@@ -7,7 +7,7 @@ using Serialization
 using CSV
 
 # %% --------
-version = "dec15"
+version = "oct15"
 mkpath("results/$version")
 
 function empirical_prior(data; α=1)
@@ -70,24 +70,12 @@ data1 = load_human_data(2)
 m1_main = BDDM(
     base_precision = .05,
     attention_factor = 0.8,
-    cost = .05,
+    cost = .06,
     prior_mean = μ,
     prior_precision = 1 / σ^2,
 )
 
 df = write_sim(m1_main, data1, "1-main")
-# %% --------
-
-
-
-#m = BDDM(
-#    base_precision = 0.25 / σ^2,
-#    attention_factor = 0.8,
-#    cost = .02 * σ,
-#    prior_mean = μ,
-#    prior_precision = 1 / σ^2,
-#)
-
 
 # %% ==================== Study 1 flat prior ====================
 
@@ -105,6 +93,14 @@ m1_zero = mutate(m1_main,
 )
 write_sim(m1_zero, data1, "1-zeroprior")
 
+# %% ==================== Study 1 unbaised prior ====================
+
+#m = deserialize("tmp/v7-2-best")
+m1_unbiased = mutate(m1_main,
+    prior_mean = empirical_prior(data1, α=1.)[1]
+)
+write_sim(m1_unbiased, data1, "1-unbiasedprior")
+
 # %% ==================== Study 2 main ====================
 #Study2: 5.134873
 #3.069003
@@ -120,9 +116,6 @@ m2_main = BDDM(
     prior_precision = 1 / σ^2
 )
 
-df = write_sim(m2_main, data2, "2-main", repeats=100)
-lm(@formula(log(rt) ~ conf1+conf2), df)
-
 # %% ==================== Study 2 no metacognition ====================
 
 avg_confidence = m2_main.confidence_slope * mean(flatten(data2.confidence))
@@ -133,7 +126,6 @@ m2_nometa = mutate(m2_main,
 df = write_sim(m2_nometa, data2, "2-nometa")
 
 # %% ==================== Study 2 null confidence ====================
-
 m2_null = mutate(m2_main,
     confidence_slope = 0,
     base_precision = m2_main.base_precision + avg_confidence
