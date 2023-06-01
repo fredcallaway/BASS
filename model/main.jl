@@ -10,13 +10,13 @@ mkpath("results/$version")
 #SD 3.007145
 
 data1 = load_human_data(2)
-μ, σ = empirical_prior(data1, α=0.8)
+µ, σ = empirical_prior(data1, α=0.8)
 
 m1_main = BDDM(
     base_precision = .05,
     attention_factor = 0.8,
     cost = .06,
-    prior_mean = μ,
+    prior_mean = µ,
     prior_precision = 1 / σ^2,
 )
 
@@ -51,13 +51,13 @@ write_sim(m1_unbiased, data1, "1-unbiasedprior")
 #3.069003
 
 data2 = load_human_data(3)
-μ, σ = empirical_prior(data2, α=0.7)
+µ, σ = empirical_prior(data2, α=0.7)
 m2_main = BDDM(
     base_precision = 0.0005,
     confidence_slope = .008,
     attention_factor = 0.8,
     cost = .06,
-    prior_mean = μ,
+    prior_mean = µ,
     prior_precision = 1 / σ^2
 )
 
@@ -116,7 +116,7 @@ df = write_sim(m2_nobias, data2, "2-nobias")
 
 data = load_human_data(2)
 trials = repeat(prepare_trials(Table(data); dt=.1), 10);
-val_μ, val_σ = juxt(mean, std)(flatten(data.value))
+val_µ, val_σ = juxt(mean, std)(flatten(data.value))
 
 # %% --------
 

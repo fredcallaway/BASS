@@ -10,8 +10,8 @@ using CSV
 
 
 function empirical_prior(data; α=1)
-    μ, σ = juxt(mean, std)(flatten(data.value))
-    α * μ, σ
+    µ, σ = juxt(mean, std)(flatten(data.value))
+    α * µ, σ
 end
 
 function make_frame(data)
@@ -40,9 +40,9 @@ function make_sim(model, data; normalize_value=false, repeats=30)
     df = make_frame(simulate_dataset(model, trials))
     if normalize_value
         # unnomrmalize it
-        val_μ, val_σ = empirical_prior(data)
-        @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
-        @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
+        val_µ, val_σ = empirical_prior(data)
+        @. df.val1 = round(df.val1 * val_σ + val_µ; digits=2)
+        @. df.val2 = round(df.val2 * val_σ + val_µ; digits=2)
     end
     df
 end

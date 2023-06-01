@@ -20,11 +20,11 @@ end
 
 "The state of the BDDM."
 struct State
-    μ::Vector{Float64}
+    µ::Vector{Float64}
     λ::Vector{Float64}
 end
 State(m::BDDM) = State(fill(m.prior_mean, m.N), fill(m.prior_precision, m.N))
-Base.copy(s::State) = State(copy(s.μ), copy(s.λ))
+Base.copy(s::State) = State(copy(s.µ), copy(s.λ))
 
 "A single choice trial"
 abstract type Trial end
@@ -58,10 +58,10 @@ SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_distrib
 # ---------- Updating ---------- #
 
 "Returns updated mean and precision given a prior and observation."
-function bayes_update_normal(μ, λ, obs, λ_obs)
+function bayes_update_normal(µ, λ, obs, λ_obs)
     λ1 = λ + λ_obs
-    μ1 = (obs * λ_obs + μ * λ) / λ1
-    (μ1, λ1)
+    µ1 = (obs * λ_obs + µ * λ) / λ1
+    (µ1, λ1)
 end
 
 "Take one step of the BDDM.
@@ -76,7 +76,7 @@ function update!(m::BDDM, s::State, true_value::Vector, λ_objective::Vector, λ
         λ_objective[i] == 0 && continue  # no update
         σ_obs = λ_objective[i] ^ -0.5
         obs = true_value[i] + σ_obs * randn()
-        s.μ[i], s.λ[i] = bayes_update_normal(s.μ[i], s.λ[i], obs, λ_subjective[i])
+        s.µ[i], s.λ[i] = bayes_update_normal(s.µ[i], s.λ[i], obs, λ_subjective[i])
     end
 end
 
@@ -94,7 +94,7 @@ end
 
 function subjective_values(m::BDDM, s::State)
     v = m.tmp  # use pre-allocated array for efficiency
-    @. v = s.μ - m.risk_aversion * s.λ ^ -0.5
+    @. v = s.µ - m.risk_aversion * s.λ ^ -0.5
 end
 
 # ---------- Attention ---------- #

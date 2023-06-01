@@ -12,7 +12,7 @@ end
 
 "Samples a Trial with fixed confidence and values conditional on the DDM state"
 function resample_values(t::Trial, s::State)
-    value = @. s.μ + (s.λ ^ -0.5) * $randn(2)
+    value = @. s.µ + (s.λ ^ -0.5) * $randn(2)
     mutate(t, value=value)
 end
 

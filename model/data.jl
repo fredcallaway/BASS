@@ -79,18 +79,18 @@ function discretize_presentation_times(durations, dt)
     out
 end
 
-function HumanTrial(d::NamedTuple; μ, σ, dt)
+function HumanTrial(d::NamedTuple; µ, σ, dt)
     presentation_distributions = PRESENTATION_DURATIONS[d.order]
     real_presentation_times = discretize_presentation_times(d.presentation_duration, dt)
     rt = sum(real_presentation_times)  # discretized
-    HumanTrial((d.value .- μ) ./ σ, d.confidence, presentation_distributions, 
+    HumanTrial((d.value .- µ) ./ σ, d.confidence, presentation_distributions, 
                real_presentation_times, d.subject, d.choice, rt, dt)
 end
 
 function prepare_trials(data; dt=.01, normalize_value=true)
-    μ, σ = normalize_value ? juxt(mean, std)(flatten(data.value)) : (0, 1)
+    µ, σ = normalize_value ? juxt(mean, std)(flatten(data.value)) : (0, 1)
     trials = map(data) do d
-        HumanTrial(d; μ, σ, dt)
+        HumanTrial(d; µ, σ, dt)
     end
     filter!(trials) do t
         # this can happen due to rounding error

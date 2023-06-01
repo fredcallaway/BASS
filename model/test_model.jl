@@ -14,7 +14,7 @@ sample_state() = State(randn(2), 1 .+ rand(2))
 
 "Samples a Trial with fixed confidence and values conditional on the DDM state"
 function resample_values(t::Trial, s::State)
-    value = @. s.μ + (s.λ ^ -0.5) * $randn(2)
+    value = @. s.µ + (s.λ ^ -0.5) * $randn(2)
     mutate(t, value=value)
 end
 
@@ -43,17 +43,17 @@ end
     presentation_distributions = [Normal(0.2, 1e-10), Normal(0.5, 1e-10)]
     for i in N_TEST
         t = SimTrial(;presentation_distributions, dt=rand([.1, .2, .3]))
-        μ1, μ2 = map(1:10000) do i
-            simulate(m, t, pol=CantStopWontStop()).states[1].μ
+        µ1, µ2 = map(1:10000) do i
+            simulate(m, t, pol=CantStopWontStop()).states[1].µ
         end |> invert
         λ1, λ2 = simulate(m, t, pol=CantStopWontStop()).states[1].λ
         v1, v2 = t.value
 
-        an_μ1, an_λ1 = bayes_update_normal(0, 1, v1, λ1 - 1)
-        @test mean(μ1) ≈ an_μ1 atol=.01
+        an_µ1, an_λ1 = bayes_update_normal(0, 1, v1, λ1 - 1)
+        @test mean(µ1) ≈ an_µ1 atol=.01
 
-        an_μ2, an_λ2 = bayes_update_normal(0, 1, v2, λ2 - 1)
-        @test mean(μ2) ≈ an_μ2 atol=.01
+        an_µ2, an_λ2 = bayes_update_normal(0, 1, v2, λ2 - 1)
+        @test mean(µ2) ≈ an_µ2 atol=.01
     end
 end
 

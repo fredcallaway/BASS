@@ -12,10 +12,10 @@ using Query
 # %% ==================== diffusion ====================
 
 function plot_sim(sim)
-    μs, λs = map(sim.states) do s
-        s.μ, s.λ
+    µs, λs = map(sim.states) do s
+        s.µ, s.λ
     end |> invert .|> combinedims
-    plot(μs', ribbon=λs' .^ -0.5; fillaplha=0.1,
+    plot(µs', ribbon=λs' .^ -0.5; fillaplha=0.1,
          xaxis=("", []), yaxis=("", []), framestyle = :origin)
 end
 
@@ -40,11 +40,11 @@ figure("diffusion") do
         t = SimTrial(;dt, value=[-1, 1])
         sim = simulate(m, t; pol, save_states=true)
         sim.time_step * dt
-        μs, λs = map(sim.states) do s
-            s.μ, s.λ
+        µs, λs = map(sim.states) do s
+            s.µ, s.λ
         end |> invert .|> combinedims
 
-        plot(collect((0:sim.time_step)) .* dt, μs', ribbon=λs' .^ -0.5; fillalpha=0.2,
+        plot(collect((0:sim.time_step)) .* dt, µs', ribbon=λs' .^ -0.5; fillalpha=0.2,
              xaxis=("", [], ), xlim=(0, 10), yaxis=("", [],), framestyle = :origin)
     end
     plot(plots...)

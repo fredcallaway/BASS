@@ -13,7 +13,7 @@ data = load_human_data(STUDY)
 human_df = make_frame(data)
 trials = repeat(prepare_trials(Table(data); dt=.1), 10);
 
-rt_μ, rt_σ = juxt(mean, std)(human_df.pt1 + human_df.pt2)
+rt_µ, rt_σ = juxt(mean, std)(human_df.pt1 + human_df.pt2)
 conf_bias = map(group(x->x.subject, human_df)) do x
     mean([x.conf1; x.conf2])
 end
@@ -26,9 +26,9 @@ function prepare_frame(df)
     Table(
         # subject = categorical(df.subject),
         choice = df.choice,
-        rt = df.pt1 .+ df.pt2  .- rt_μ,
+        rt = df.pt1 .+ df.pt2  .- rt_µ,
         log1000rt = log.(1000 .* (df.pt1 .+ df.pt2)),
-        # rt = @.((df.pt1 + df.pt2  - rt_μ) / 2rt_σ),
+        # rt = @.((df.pt1 + df.pt2  - rt_µ) / 2rt_σ),
         rel_value = (df.val1 .- df.val2) ./ 10,
         rel_conf = df.conf1 .- df.conf2,
         abs_rel_value = demean(abs.((df.val1 .- df.val2) ./ 10)),

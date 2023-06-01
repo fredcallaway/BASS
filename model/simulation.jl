@@ -1,9 +1,9 @@
 using ProgressMeter
 
 function write_simulation(name, model, data; dt=.025)
-    μ, σ = juxt(mean, std)(flatten(data.value))
+    µ, σ = juxt(mean, std)(flatten(data.value))
     @showprogress map(data) do d
-        t = HumanTrial(d; μ, σ, dt)
+        t = HumanTrial(d; µ, σ, dt)
         sim = simulate(m, SimTrial(t); save_presentation=true)
         presentation_duration = t.dt .* sim.presentation_durations
 

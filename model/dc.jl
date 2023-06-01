@@ -70,10 +70,10 @@ function std_of_posterior_mean(λ, λ_obs)
 end
 
 "Expected termination reward in a future belief state with greater precision, λ_future."
-function expected_term_reward(μ1, μ2, σ1, σ2, λ_future1, λ_future2, risk_aversion)
+function expected_term_reward(µ1, µ2, σ1, σ2, λ_future1, λ_future2, risk_aversion)
     # expected subjective values in future belief state
-    v1 = μ1 - risk_aversion * λ_future1 ^ -0.5
-    v2 = μ2 - risk_aversion * λ_future2 ^ -0.5
+    v1 = µ1 - risk_aversion * λ_future1 ^ -0.5
+    v2 = µ2 - risk_aversion * λ_future2 ^ -0.5
     # standard deviation of difference beteween future values
     θ = √(σ1^2 + σ2^2)
     α = (v1 - v2) / θ  # difference scaled by std
@@ -82,10 +82,10 @@ function expected_term_reward(μ1, μ2, σ1, σ2, λ_future1, λ_future2, risk_a
     v1 * p1 + v2 * p2 + θ * normpdf(α)
 end
 
-# function expected_term_reward(μ, λ, risk_aversion, λ_future)
+# function expected_term_reward(µ, λ, risk_aversion, λ_future)
 #     σ1 = λ[1] ^ -0.5; σ2 = λ[2] ^ -0.5
 #     # expected subjective values in future belief state
-#     v1 = μ[1] - risk_aversion * λ_future[1] ^ -0.5; v2 = μ[2] - risk_aversion * λ_future[2] ^ -0.5
+#     v1 = µ[1] - risk_aversion * λ_future[1] ^ -0.5; v2 = µ[2] - risk_aversion * λ_future[2] ^ -0.5
 #     # standard deviation of difference beteween future values
 #     θ = √(σ1^2 + σ2^2)
 #     α = (v1 - v2) / θ  # difference scaled by std
@@ -101,8 +101,8 @@ function voi_n(m::BDDM, s::State, n::Real, λ_avg::Vector)
 
     λ_future1 = s.λ[1] + n * λ_avg[1]
     λ_future2 = s.λ[2] + n * λ_avg[2]
-    # σ_μ ≈ 0. && return 0.  # avoid error initializing Normal
-    expected_term_reward(s.μ[1], s.μ[2], σ1, σ2, λ_future1, λ_future2, m.risk_aversion) - term_reward(m, s)
+    # σ_µ ≈ 0. && return 0.  # avoid error initializing Normal
+    expected_term_reward(s.µ[1], s.µ[2], σ1, σ2, λ_future1, λ_future2, m.risk_aversion) - term_reward(m, s)
 end
 
 "Value of computation from n more samples."
@@ -127,7 +127,7 @@ end
 # NOT CORRECT
 # "Value of perfect information about all items."
 # function vpi(s)
-#     expected_max_norm(s.μ, s.λ) - maximum(s.μ)
+#     expected_max_norm(s.µ, s.λ) - maximum(s.µ)
 # end
 
 # struct Policy
@@ -137,7 +137,7 @@ end
 # end
 
 # function stop(pol::Policy, s::State)
-#     choice = argmax(s.μ)
+#     choice = argmax(s.µ)
 #     risk = s.λ[choice] ^ -0.5
 #     pol.β_risk * risk + pol.β_vpi * vpi(s) + pol.intercept < 0
 # end

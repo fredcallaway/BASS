@@ -17,19 +17,19 @@ fit_rt_model(human_df)
 
 mkpath("tmp/qualitative/$version/")
 
-μ_val, σ_val = empirical_prior(data)
+µ_val, σ_val = empirical_prior(data)
 
     # base_precision = .05,
     # attention_factor = 0.8,
     # cost = .06,
-    # prior_mean = μ,
+    # prior_mean = µ,
     # prior_precision = 1 / σ^2,
 
     # base_precision = 0.0005,
     # confidence_slope = .008,
     # attention_factor = 0.8,
     # cost = .06,
-    # prior_mean = μ,
+    # prior_mean = µ,
     # prior_precision = 1 / σ^2
 
 
@@ -39,7 +39,7 @@ full_box = if STUDY == 1
         base_precision = (.01, .1),
         attention_factor = (0, 1),
         cost = (.01, .1),
-        prior_mean = μ_val .+ (-2σ_val, 2σ_val),
+        prior_mean = µ_val .+ (-2σ_val, 2σ_val),
         prior_precision = σ_val^-2 .* (0.5, 1.5),
     )
 elseif STUDY == 2
@@ -55,7 +55,7 @@ elseif STUDY == 2
     #     confidence_slope = .008,
     #     attention_factor = 0.8,
     #     cost = .06,
-    #     prior_mean = μ_val,
+    #     prior_mean = µ_val,
     #     prior_precision = 1 / σ_val^2
     # )
 else
@@ -108,8 +108,8 @@ results = @showprogress pmap(enumerate(candidates); on_error) do (i, m)
         @error "Nothing sim_df on job $i"
         error("Nothing sim_df on job $i")
     end
-    @. sim_df.val1 = round(sim_df.val1 * val_σ + val_μ; digits=2)
-    @. sim_df.val2 = round(sim_df.val2 * val_σ + val_μ; digits=2)
+    @. sim_df.val1 = round(sim_df.val1 * val_σ + val_µ; digits=2)
+    @. sim_df.val2 = round(sim_df.val2 * val_σ + val_µ; digits=2)
     choice_fit = coeftable(fit_choice_model(sim_df))
     rt_fit = coeftable(fit_rt_model(sim_df))
     (; choice_fit, rt_fit)
@@ -184,8 +184,8 @@ serialize("tmp/qualitative/$version/best", candidates[best])
 
 function write_sim(model, tag="")
     df = make_frame(simulate_dataset(model, trials))
-    @. df.val1 = round(df.val1 * val_σ + val_μ; digits=2)
-    @. df.val2 = round(df.val2 * val_σ + val_μ; digits=2)
+    @. df.val1 = round(df.val1 * val_σ + val_µ; digits=2)
+    @. df.val2 = round(df.val2 * val_σ + val_µ; digits=2)
     fn = "results/qualitative_sim_$version$tag.csv"
     df |> CSV.write(fn)
     println("wrote $fn")
@@ -222,8 +222,8 @@ function prepare_frame(df)
     Table(
         # subject = categorical(df.subject),
         choice = df.choice,
-        rt = df.pt1 .+ df.pt2  .- rt_μ,
-        # rt = @.((df.pt1 + df.pt2  - rt_μ) / 2rt_σ),
+        rt = df.pt1 .+ df.pt2  .- rt_µ,
+        # rt = @.((df.pt1 + df.pt2  - rt_µ) / 2rt_σ),
         rel_value = (df.val1 .- df.val2) ./ 10,
         rel_conf = df.conf1 .- df.conf2,
         avg_value = demean(df.val1 .+ df.val2) ./ 20,
