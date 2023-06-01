@@ -67,7 +67,7 @@ Base.dropdims(idx::Int...) = X -> dropdims(X, dims=idx)
 Base.reshape(idx::Union{Int,Colon}...) = x -> reshape(x, idx...)
 
 
-valmap(f, d::Dict) = Dict(k => f(v) for (k, v) in d)
+valmap(f, d::AbstractDict) = Dict(k => f(v) for (k, v) in d)
 valmap(f, d::OrderedDict) = OrderedDict(k => f(v) for (k, v) in d)
 # valmap(f, d::T) where T <: AbstractDict = T(k => f(v) for (k, v) in d)
 
@@ -109,10 +109,17 @@ getfields(x) = (getfield(x, f) for f in fieldnames(typeof(x)))
 # %% ==================== Axis Keys ====================
 using AxisKeys
 function grid(;kws...)
-    X = map(Iterators.product(values(kws)...)) do x
-        (; zip(keys(kws), x)...)
+    vals = collect(values(kws))
+    has_multi = map(vals) do v
+        applicable(length, v) && length(v) > 1
     end
-    KeyedArray(X; kws...)
+    singles = (;zip(keys(kws)[.!has_multi], vals[.!has_multi])...)
+    multis = (;zip(keys(kws)[has_multi], vals[has_multi])...)
+    X = map(Iterators.product(values(multis)...)) do x
+        nt = (; singles..., zip(keys(multis), x)..., )
+        NamedTuple(k => nt[k] for k in keys(kws))
+    end
+    KeyedArray(X; multis...)
 end
 
 function keyed(name, xs)

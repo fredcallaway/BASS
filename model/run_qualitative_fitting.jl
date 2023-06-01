@@ -1,51 +1,91 @@
 using Distributed
 using ProgressMeter
+using Sobol
+using Serialization
 
 # %% ==================== Set up ====================
 @everywhere STUDY = 2
-@everywhere MODEL = :no_conf
-@everywhere version = "v7-$MODEL-$STUDY"
+@everywhere MODEL = :ignoreconf
+@everywhere version = "test-$STUDY-$MODEL"
 @everywhere include("qualitative_fitting.jl")
+N_SOBOL = 10
+
+# %% --------
 
 fit_choice_model(human_df)
 fit_rt_model(human_df)
 
 mkpath("tmp/qualitative/$version/")
 
-if STUDY == 2
-    @assert MODEL == :no_conf
+μ_val, σ_val = empirical_prior(data)
+
+    # base_precision = .05,
+    # attention_factor = 0.8,
+    # cost = .06,
+    # prior_mean = μ,
+    # prior_precision = 1 / σ^2,
+
+    # base_precision = 0.0005,
+    # confidence_slope = .008,
+    # attention_factor = 0.8,
+    # cost = .06,
+    # prior_mean = μ,
+    # prior_precision = 1 / σ^2
+
+
+
+full_box = if STUDY == 1
+    Box(
+        base_precision = (.01, .1),
+        attention_factor = (0, 1),
+        cost = (.01, .1),
+        prior_mean = μ_val .+ (-2σ_val, 2σ_val),
+        prior_precision = σ_val^-2 .* (0.5, 1.5),
+    )
+elseif STUDY == 2
+    error("TODO")
+    # Box(
+    #     base_precision = (.0001, .01, :log),
+    #     confidence_slope = (.001, .1, :log),
+    #     attention_factor = (0, 1),
+    #     cost = (.01, .1),
+    #     prior_mean = (-2, 0),
+
+    #     base_precision = 0.0005,
+    #     confidence_slope = .008,
+    #     attention_factor = 0.8,
+    #     cost = .06,
+    #     prior_mean = μ_val,
+    #     prior_precision = 1 / σ_val^2
+    # )
+else
+    error("Bad STUDY value: $STUDY")
 end
 
 boxes = Dict(
-    :full => Box(
-        base_precision = (.0005, .01, :log),
-        attention_factor = (0, 1),
-        cost = (.005, .05, :log),
-        confidence_slope = (0, 0.1),
-        prior_mean = (-2, 0),
-    ),
-    :no_conf => Box(
-        base_precision = (.01, 0.5, :log),
-        attention_factor = (0, 1),
-        cost = (.005, .05, :log),
-        confidence_slope = 0,
-        prior_mean = (-2, 0),
-    ),
-    :no_meta => Box(
-        base_precision = (.001, 0.5, :log),
-        attention_factor = (0, 1),
-        cost = (.005, .05, :log),
-        confidence_slope = (0, 0.1),
-        prior_mean = (-2, 0),
+    :full => full_box,
+    :nometa => update(full_box,
         subjective_slope = 0,
         subjective_offset = (.01, 1, :log)
-    )
+    ),
+    :ignoreconf => update(full_box,
+        confidence_slope = 0,
+    ),
+    :flatprior => update(full_box,
+        prior_precision = 1e-6
+    ),
+    :zeroprior => update(full_box,
+        prior_mean = 0
+    ),
+    :unbiasedprior => update(full_box,
+        prior_mean = µ_val
+    ),
 )
 
 box = boxes[MODEL]
 serialize("tmp/qualitative/$version/box", box)
 
-candidates = map(Iterators.take(SobolSeq(n_free(box)), 10000)) do x
+candidates = map(Iterators.take(SobolSeq(n_free(box)), N_SOBOL)) do x
     BDDM(;box(x)...)
 end;
 

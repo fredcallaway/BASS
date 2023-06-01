@@ -9,6 +9,14 @@ Box(;dims...) = Box(OrderedDict(dims...))
 Base.length(b::Box) = length(b.dims)
 Base.getindex(box::Box, k) = box.dims[k]
 
+function update(box::Box; dims...)
+    box = deepcopy(box)
+    for (k, v) in dims
+        box.dims[k] = v
+    end
+    box
+end
+
 function Base.display(box::Box)
     println("Box")
     for p in pairs(box.dims)
@@ -62,9 +70,11 @@ end
 
 (box::Box)(x) = apply(box, x)
 
+# valmap(f, d::AbstractDict) = Dict(k => f(v) for (k, v) in d)
 function grid(n::Int, box::Box)
     xs = range(0, 1, length=n)
     kws = valmap(box.dims) do d
+        length(d) == 1 && return [d]
         [rescale(d, x) for x in xs]
     end
     grid(;kws...)
