@@ -13,6 +13,7 @@ data = load_human_data(STUDY)
 human_df = make_frame(data)
 trials = repeat(prepare_trials(Table(data); dt=.1), 10);
 
+val_µ, val_σ = empirical_prior(data)
 rt_µ, rt_σ = juxt(mean, std)(human_df.pt1 + human_df.pt2)
 conf_bias = map(group(x->x.subject, human_df)) do x
     mean([x.conf1; x.conf2])
@@ -40,10 +41,10 @@ function prepare_frame(df)
 end
 
 function fit_choice_model(df)
-    if STUDY == 3       
+    if STUDY == 2
         formula = @formula(choice==1 ~ rel_value + avg_value + rel_conf + avg_conf + prop_first_presentation  + rt +
             rel_value & avg_conf + rel_conf & avg_value + prop_first_presentation & avg_value);
-    elseif STUDY == 2
+    elseif STUDY == 1
         #isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV + spdfirst:fstosnd
         # TODO: add this @formulat(choice==1 ~ rel_value + prop_first_presentation * (avg_value + rel_value) + rt)
         formula = @formula(choice==1 ~ (rel_value + avg_value) * prop_first_presentation + rt);
@@ -54,11 +55,11 @@ function fit_choice_model(df)
 end
 
 function fit_rt_model(df)
-    if STUDY == 3
+    if STUDY == 2
         #formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value)
         formula = @formula(log1000rt ~ abs_rel_value + avg_value + rel_conf + avg_conf + rel_value + prop_first_presentation + 
             rel_value & prop_first_presentation)
-    elseif STUDY == 2
+    elseif STUDY == 1
         formula = @formula(log1000rt ~ abs_rel_value + avg_value)
         #formula = @formula(log1000rt ~ (abs_rel_value + rel_value + avg_value) * prop_first_presentation)
     else

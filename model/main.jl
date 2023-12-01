@@ -9,7 +9,7 @@ mkpath("results/$version")
 #Rating Study 1: mean 4.789534
 #SD 3.007145
 
-data1 = load_human_data(2)
+data1 = load_human_data(1)
 µ, σ = empirical_prior(data1, α=0.8)
 
 m1_main = BDDM(
@@ -50,7 +50,7 @@ write_sim(m1_unbiased, data1, "1-unbiasedprior")
 #Study2: 5.134873
 #3.069003
 
-data2 = load_human_data(3)
+data2 = load_human_data(2)
 µ, σ = empirical_prior(data2, α=0.7)
 m2_main = BDDM(
     base_precision = 0.0005,
@@ -70,12 +70,6 @@ m2_nometa = mutate(m2_main,
 )
 df = write_sim(m2_nometa, data2, "2-nometa")
 
-# %% ==================== Study 2 null confidence ====================
-m2_null = mutate(m2_main,
-    confidence_slope = 0,
-    base_precision = m2_main.base_precision + avg_confidence
-)
-df = write_sim(m2_null, data2, "2-ignoreconf")
 
 # %% ==================== Study 2 overconfidence ====================
 
@@ -114,7 +108,7 @@ df = write_sim(m2_nobias, data2, "2-nobias")
 
 # %% ==================== Scratch ====================
 
-data = load_human_data(2)
+data = load_human_data(1)
 trials = repeat(prepare_trials(Table(data); dt=.1), 10);
 val_µ, val_σ = juxt(mean, std)(flatten(data.value))
 
@@ -135,7 +129,7 @@ write_sim(m, 3)
 
 # %% --------
 
-data = load_human_data(3)
+data = load_human_data(2)
 trials = repeat(prepare_trials(Table(data); dt=.1), 1);
 # %% --------
 m = deserialize("tmp/v7-3-best")

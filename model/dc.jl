@@ -43,6 +43,7 @@ function voc_is_positive(pol::Policy, s, t, offset)
     voc_n(m, s, 1, λ_avg, t.dt) > 0 && return true
     # NOTE: the target keyword relies on my fork of Optim.jl
     # https://github.com/fredcallaway/Optim.jl/
+    # It's included in Project.toml so it should "just work" if you follow the README
     res = optimize(1., 100., abs_tol=1., target=offset) do n
         -voc_n(m, s, n, λ_avg, t.dt)
     end

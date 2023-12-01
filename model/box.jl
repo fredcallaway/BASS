@@ -10,11 +10,11 @@ Base.length(b::Box) = length(b.dims)
 Base.getindex(box::Box, k) = box.dims[k]
 
 function update(box::Box; dims...)
-    box = deepcopy(box)
+    d = OrderedDict{Symbol, Union{Real, Tuple}}(box.dims)
     for (k, v) in dims
-        box.dims[k] = v
+        d[k] = v
     end
-    box
+    Box(d)
 end
 
 function Base.display(box::Box)

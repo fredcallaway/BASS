@@ -6,7 +6,7 @@ mkpath("results/$version")
 # %% --------
 
 
-data1 = load_human_data(2)
+data1 = load_human_data(1)
 µ, σ = empirical_prior(data1, α=0.8)
 
 # %% --------
@@ -20,9 +20,6 @@ box = Box(
 )
 
 prms = grid(2, box)
-
-
-
 
 
 # %% --------

@@ -4,20 +4,28 @@ using Sobol
 using Serialization
 
 # %% ==================== Set up ====================
-@everywhere STUDY = 2
-@everywhere MODEL = :ignoreconf
+@everywhere STUDY = 1
+@everywhere MODEL = :full
 @everywhere version = "test-$STUDY-$MODEL"
 @everywhere include("qualitative_fitting.jl")
-N_SOBOL = 10
+N_SOBOL = 100
 
 # %% --------
 
-fit_choice_model(human_df)
-fit_rt_model(human_df)
+
+choice_mod = fit_choice_model(human_df)
+rt_mod = fit_rt_model(human_df)
+
+# %% --------
+
+d = prepare_frame(human_df)
+rel_value, avg_value, prop_first_presentation, rt, 
+predict(choice_mod, d)
+
+# %% --------
+
 
 mkpath("tmp/qualitative/$version/")
-
-µ_val, σ_val = empirical_prior(data)
 
     # base_precision = .05,
     # attention_factor = 0.8,
@@ -26,11 +34,11 @@ mkpath("tmp/qualitative/$version/")
     # prior_precision = 1 / σ^2,
 
     # base_precision = 0.0005,
-    # confidence_slope = .008,
+    # confidence_slope = .008
     # attention_factor = 0.8,
     # cost = .06,
     # prior_mean = µ,
-    # prior_precision = 1 / σ^2
+    # prior_precision = 1 / σ^2g
 
 
 
@@ -39,8 +47,8 @@ full_box = if STUDY == 1
         base_precision = (.01, .1),
         attention_factor = (0, 1),
         cost = (.01, .1),
-        prior_mean = µ_val .+ (-2σ_val, 2σ_val),
-        prior_precision = σ_val^-2 .* (0.5, 1.5),
+        prior_mean = val_µ .+ (-2σ_val, 2σ_val),
+        prior_precision = val_σ^-2 .* (0.5, 1.5),
     )
 elseif STUDY == 2
     error("TODO")
@@ -50,13 +58,6 @@ elseif STUDY == 2
     #     attention_factor = (0, 1),
     #     cost = (.01, .1),
     #     prior_mean = (-2, 0),
-
-    #     base_precision = 0.0005,
-    #     confidence_slope = .008,
-    #     attention_factor = 0.8,
-    #     cost = .06,
-    #     prior_mean = µ_val,
-    #     prior_precision = 1 / σ_val^2
     # )
 else
     error("Bad STUDY value: $STUDY")
@@ -65,7 +66,7 @@ end
 boxes = Dict(
     :full => full_box,
     :nometa => update(full_box,
-        subjective_slope = 0,
+        subjective_slope = 0.,
         subjective_offset = (.01, 1, :log)
     ),
     :ignoreconf => update(full_box,
@@ -78,7 +79,7 @@ boxes = Dict(
         prior_mean = 0
     ),
     :unbiasedprior => update(full_box,
-        prior_mean = µ_val
+        prior_mean = val_µ
     ),
 )
 
@@ -96,7 +97,7 @@ mkpath("tmp/qualitative/$version/sims")
 # %% ==================== Simulate and run regressions ====================
 
 @everywhere on_error(err) = err
-results = @showprogress pmap(enumerate(candidates); on_error) do (i, m)
+results = @showprogress pmap(enumerate(candidates)) do (i, m)
     sim_df = if isfile("tmp/qualitative/$version/sims/$i")
          load_sim(i)
     else
@@ -120,6 +121,12 @@ err_rate = mean(isa.(results, Exception))
 if err_rate > 0
     @error "Error rate: $err_rate"
 end
+
+# %% --------
+
+r = results[1]
+
+typeof(r.choice_fit)
 
 # %% ==================== Compare to model fit to human ====================
 

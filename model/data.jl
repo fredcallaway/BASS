@@ -61,7 +61,7 @@ function load_human_data(path="data/Study3Fred.json")
         )
     end  |> skipmissing |> collect |> Vector{NamedTuple} |> Table
 end
-load_human_data(number::Int) = load_human_data("data/Study$(number)Fred.json")
+load_human_data(number::Int) = load_human_data("data/Study$(number+1)Fred.json")
 
 "Discretize presentation times while preventing rounding error from accumulating"
 function discretize_presentation_times(durations, dt)
