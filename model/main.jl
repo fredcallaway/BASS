@@ -1,6 +1,6 @@
 include("base.jl")
 
-version = "oct15"
+version = "dec1"
 mkpath("results/$version")
 
 
@@ -10,7 +10,7 @@ mkpath("results/$version")
 #SD 3.007145
 
 data1 = load_human_data(1)
-µ, σ = empirical_prior(data1, α=0.8)
+µ, σ = empirical_prior(data1)
 
 m1_main = BDDM(
     base_precision = .05,
@@ -38,20 +38,21 @@ m1_zero = mutate(m1_main,
 )
 write_sim(m1_zero, data1, "1-zeroprior")
 
-# %% ==================== Study 1 unbaised prior ====================
+# %% ==================== Study 1 biased prior ====================
 
 #m = deserialize("tmp/v7-2-best")
-m1_unbiased = mutate(m1_main,
-    prior_mean = empirical_prior(data1, α=1.)[1]
+m1_biased = mutate(m1_main,
+    prior_mean = empirical_prior(data1, α=0.8)[1]
 )
-write_sim(m1_unbiased, data1, "1-unbiasedprior")
+write_sim(m1_biased, data1, "1-biased")
 
 # %% ==================== Study 2 main ====================
 #Study2: 5.134873
 #3.069003
 
 data2 = load_human_data(2)
-µ, σ = empirical_prior(data2, α=0.7)
+
+µ, σ = empirical_prior(data2)
 m2_main = BDDM(
     base_precision = 0.0005,
     confidence_slope = .008,
@@ -60,6 +61,9 @@ m2_main = BDDM(
     prior_mean = µ,
     prior_precision = 1 / σ^2
 )
+df = write_sim(m2_main, data2, "2-main")
+
+
 
 # %% ==================== Study 2 no metacognition ====================
 
@@ -89,58 +93,19 @@ end
 
 df = write_sim(over_models, data2, "2-overconf"; repeats=5)
 
-# %% ==================== Study 2 overconfidence-slope ====================
+# %% ==================== Study 2 biased prior ====================
 
-slope_over_models = map(.6:.2:1.4) do subjective_slope
-    mutate(m2_main; subjective_slope)
-end
-
-df = write_sim(slope_over_models, data2, "2-overconfslope"; repeats=5)
-
-# %% ==================== Study 2 no bias ====================
-
-m2_nobias = mutate(m2_main,
-    prior_mean = empirical_prior(data2)[1]
-    #confidence_slope = 0,
-    #base_precision = m2_main.base_precision + avg_confidence
+#m = deserialize("tmp/v7-2-best")
+m2_biased = mutate(m2_main,
+    prior_mean = empirical_prior(data2, α=0.7)[1]
 )
-df = write_sim(m2_nobias, data2, "2-nobias")
-
-# %% ==================== Scratch ====================
-
-data = load_human_data(1)
-trials = repeat(prepare_trials(Table(data); dt=.1), 10);
-val_µ, val_σ = juxt(mean, std)(flatten(data.value))
-
-# %% --------
-
-m = deserialize("tmp/v7-3-best")
-
-m = mutate(m,
-    base_precision = 0.005,
-    confidence_slope = .07,
-    attention_factor = 0.8,
-    cost = .02,
-    prior_mean = -0.5,
-)
-
-write_sim(m, 3)
+write_sim(m2_biased, data1, "2-biased")
 
 
-# %% --------
+# # %% ==================== Study 2 overconfidence-slope ====================
 
-data = load_human_data(2)
-trials = repeat(prepare_trials(Table(data); dt=.1), 1);
-# %% --------
-m = deserialize("tmp/v7-3-best")
+# slope_over_models = map(.6:.2:1.4) do subjective_slope
+#     mutate(m2_main; subjective_slope)
+# end
 
-m = mutate(m,
-    base_precision = 0.01,
-    confidence_slope = .05,
-    attention_factor = 0.8,
-    cost = .02,
-    prior_mean = 0,
-)
-println(mean(log.(1000 .* invert(simulate_dataset(m, trials)).rt)))
-
-
+# df = write_sim(slope_over_models, data2, "2-overconfslope"; repeats=5)
