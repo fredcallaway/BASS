@@ -106,20 +106,23 @@ function set_attention!(attention::Vector, m::BDDM, attended_item::Int, first_fi
     end
 end
 
-function make_switches(t::SimTrial)
-    switching = t.presentation_distributions |> enumerate |> Iterators.cycle |> Iterators.Stateful
-    function switch()
-        item, dist = first(switching)
+function make_switches(t)
+    itr = Iterators.Stateful(presentation_generator(t))
+    () -> first(itr)
+end
+
+function presentation_generator(t::SimTrial)
+    Iterators.map(t.presentation_distributions |> enumerate |> Iterators.cycle) do (item, dist)
         duration = max(1, round(Int, rand(dist) / t.dt))
         item, duration
     end
 end
 
-function make_switches(t::HumanTrial)
-    switching = zip(Iterators.cycle(eachindex(t.value)), t.real_presentation_times) |> Iterators.Stateful
-    function switch()
-        first(switching)
-    end
+function presentation_generator(t::HumanTrial)
+    Iterators.flatten((
+        zip(Iterators.cycle(eachindex(t.value)), t.real_presentation_times),
+        presentation_generator(SimTrial(t))
+    ))
 end
 
 # ---------- Stopping policy ---------- #
@@ -147,10 +150,10 @@ end
 "Simulates a choice trial with a given BDDM and stopping Policy."
 function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), 
                   save_states=false, save_presentation=false)
-    if t isa HumanTrial
-        #error("Trying to simulate a HumanTrial")
-        max_step = min(max_step, t.rt)
-    end
+    # if t isa HumanTrial
+    #     #error("Trying to simulate a HumanTrial")
+    #     max_step = min(max_step, t.rt)
+    # end
     initialize!(pol, t)
     switch = make_switches(t)
     attended_item, time_to_switch = switch()

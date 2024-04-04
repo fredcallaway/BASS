@@ -20,7 +20,8 @@ function make_frame(data)
        conf1, conf2 = d.confidence
        pt1 = round(sum(d.presentation_duration[1:2:end]); digits=3)
        pt2 = round(sum(d.presentation_duration[2:2:end]); digits=3)
-       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice, d.rt)
+       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice, d.rt,
+        initpresdur1=d.presentation_duration[1], initpresdur2=get(d.presentation_duration, 2, missing))
    end |> Table
 end
 
@@ -48,7 +49,8 @@ function make_sim(model, data; normalize_value=false, repeats=30)
 end
 
 
-function write_sim(model, data, name; normalize_value=false, repeats=30)
+function write_sim(model, data, version, name; normalize_value=false, repeats=30)
+    mkpath("results/$version")
     df = make_sim(model, data; normalize_value, repeats)
     fn = "results/$version/$name.csv"
     df |> CSV.write(fn)

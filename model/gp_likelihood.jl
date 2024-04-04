@@ -17,6 +17,7 @@ include("ibs.jl")
 include("box.jl")
 include("figure.jl")
 include("minimize.jl")
+
 # %% ==================== Load results ====================
 
 struct SobolResult
@@ -33,7 +34,7 @@ end
 
 function SobolResult(model, version, subject)
     path = "tmp/$(lowercase(string(model)))/sobol/$version/$subject"
-    @unpack box, xs, results, chance, ibs_kws, trials, default = deserialize(path);
+    @unpack box, xs, results, chance, ibs_kws, trials = deserialize(path);
 
     X = combinedims(xs)
     nll = [-r.logp for r in results]
@@ -48,7 +49,7 @@ Base.show(io::IO, sr::SobolResult) = print(io, "SobolResult($(identifier(sr)))")
 
 function true_nll_meanstd(sr::SobolResult, x; repeats=100, kws...)
     m = sr.model(;sr.box(x)...)
-    res = ibs_loglike(m, sr.trials[1:2:end]; sr.ibs_kws..., repeats, kws...)
+    res = ibs_loglike(m, sr.trials; sr.ibs_kws..., repeats, kws...)
     (-res.logp, res.std)
 end
 
@@ -131,7 +132,7 @@ function estimate_error(g::GPSL, x; q=0.5)
     true_nll(g.sr, x) - predict_quantile(g, x, q)
 end
 
-chance_loglike(sr::SobolResult) = chance_loglike(sr.trials[1:2:end]; sr.ibs_kws.tol)
+chance_loglike(sr::SobolResult) = chance_loglike(sr.trials; sr.ibs_kws.tol)
 function GPSL(sr::SobolResult; kws...)
     gp_mean = -sr.ibs_kws.min_multiplier * chance_loglike(sr)
     converged = sr.nll_std .≠ 20
@@ -149,7 +150,8 @@ function plot_marginals(g::GPSL, x0)
     figure("$(identifier(g.sr))-marginals") do
         xx = 0:.01:1
         chance = chance_loglike(g.sr)
-        plots = map(enumerate(pairs(g.sr.box.dims))) do (i, (name, d))
+        plots = map(enumerate(free(g.sr.box))) do (i, name)
+            d = g.sr.box[name]
             x = copy(x0)
             y, ystd = map(xx) do x_target
                 x[i] = x_target
@@ -195,7 +197,7 @@ function process_sobol_result(model, version, subject; repeats=100, opt_points=1
         println("  computed nll  = ", model_nll_true)
     end
 
-    best_x = if model_nll_true < emp_nll_true
+    best_x = if (repeats > 10) && model_nll_true < emp_nll_true
         println("Using model's best point")
         model_x
     else
@@ -207,4 +209,5 @@ function process_sobol_result(model, version, subject; repeats=100, opt_points=1
     prm = sr.box(best_x)
     res = (; emp_x, emp_nll_hat, emp_nll_true, model_x, model_nll_hat, model_nll_true, best_x, prm, sr.trials[1].dt)
     serialize("results/$(identifier(sr))-mle", res)
+    return res
 end

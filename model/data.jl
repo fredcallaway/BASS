@@ -59,7 +59,7 @@ function load_human_data(path="data/Study3Fred.json")
             choice = d["isFirstChosen"] ? 1 : 2,
             rt = d["RT"]
         )
-    end  |> skipmissing |> collect |> Vector{NamedTuple} |> Table
+    end |> skipmissing |> collect |> Vector{NamedTuple} |> Table
 end
 load_human_data(number::Int) = load_human_data("data/Study$(number+1)Fred.json")
 
@@ -92,9 +92,12 @@ function prepare_trials(data; dt=.01, normalize_value=true)
     trials = map(data) do d
         HumanTrial(d; µ, σ, dt)
     end
-    filter!(trials) do t
-        # this can happen due to rounding error
-        t.rt <= max_rt(t)
+    map(trials) do t
+        if t.rt > max_rt(t)
+            mutate(t, rt=max_rt(t))
+        else
+            t
+        end
     end
 end 
 
