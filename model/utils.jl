@@ -3,6 +3,44 @@ using NamedTupleTools
 using Statistics
 using StatsBase
 using Distributions
+flatten = SplitApplyCombine.flatten
+
+macro infiltry(ex)
+    return quote
+        try
+            $(esc(ex))
+        catch
+            $(Infiltrator.start_prompt)($(__module__), Base.@locals, $(String(__source__.file)), $(__source__.line))
+        end
+    end
+end
+
+named_tuple(x::NamedTuple) = x
+function named_tuple(x)
+    n = Tuple(propertynames(x))
+    NamedTuple{n}(getproperty.(Ref(x), n))
+end
+
+Base.get(name::Symbol) = Base.Fix2(getproperty, name)
+Base.get(i::Int) = Base.Fix2(getindex, i)
+Base.get(x, name::Symbol) = getproperty(x, name)
+Base.get(x, i::Int) = getindex(x, i)
+Base.getindex(key) = Base.Fix2(getindex, key)
+
+basetype(f::Type) = f.name.wrapper
+basetype(f) = basetype(typeof(f))
+
+function monte_carlo(f, N=10000)
+    N \ mapreduce(+, 1:N) do i
+        f()
+    end
+end
+
+function repeatedly(f, N=10000)
+    map(1:N) do i
+        f()
+    end
+end
 
 function mutate(x::T; kws...) where T
     for field in keys(kws)

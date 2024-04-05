@@ -63,12 +63,16 @@ function average_precision(m::BDDM, t::Trial)
     @. base * attention_proportion + m.attention_factor * base * (1 - attention_proportion)
 end
 
-"Standard deviation of the posterior mean given precisions of the prior and observation."
+"""Standard deviation of the posterior mean given precisions of the prior and observation.
+
+Note that this accounts for uncertainty in the true mean from which observations are drawn.
+"""
 function std_of_posterior_mean(λ, λ_obs)
     w = λ_obs / (λ + λ_obs)
     σ_sample = √(1/λ + 1/λ_obs)
     w * σ_sample
 end
+
 
 "Expected termination reward in a future belief state with greater precision, λ_future."
 function expected_term_reward(µ1, µ2, σ1, σ2, λ_future1, λ_future2, risk_aversion)

@@ -87,7 +87,7 @@ function HumanTrial(d::NamedTuple; µ, σ, dt)
                real_presentation_times, d.subject, d.choice, rt, dt)
 end
 
-function prepare_trials(data; dt=.01, normalize_value=true)
+function prepare_trials(data; dt=.01, normalize_value=false)
     µ, σ = normalize_value ? juxt(mean, std)(flatten(data.value)) : (0, 1)
     trials = map(data) do d
         HumanTrial(d; µ, σ, dt)
