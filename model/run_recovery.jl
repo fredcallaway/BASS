@@ -18,10 +18,10 @@ mkpath("tmp/recovery")
 
 # %% ==================== Simulate ====================
 sim_box = Box(
-    base_precision = (.01, 1, :log),
+    base_precision = (.01, .1),
     attention_factor = (0, 1),
-    cost = (.01, .03, :log),
-    confidence_slope = (0, 0.25),
+    cost = (.01, .1),
+    # confidence_slope = (0, 0.25),
     prior_mean = (-2, 0),
 )
 
@@ -34,7 +34,7 @@ xs = Iterators.take(SobolSeq(n_free(sim_box)), n_subj) |> collect
 #     [SimTrial(; dt) for i in 1:n_trial]
 # end |> Iterators.cycle |> (x -> Iterators.take(x, length(xs)))
 
-all_data = load_human_data()
+all_data = load_human_data(1)
 trial_sets = map(collect(group(d->d.subject, all_data))) do data
     SimTrial.(prepare_trials(Table(data), dt=.1))
 end |> Iterators.cycle |> (x -> Iterators.take(x, length(xs)))
@@ -50,41 +50,44 @@ function simulate_dataset(m, trials; subject=0)
     end
 end
 
-sim_data = @showprogress "Simulating " map(enumerate(xs), trial_sets) do (subject, x), trials
-    m = BDDM(;sim_box(x)...)
-    simulate_dataset(m, trials; subject)
-end
 
-# %% ==================== Check summary statistics ====================
+data1 = load_human_data(1)
+µ, σ = empirical_prior(data1)
+m1_main = BDDM(
+    base_precision = .05,
+    attention_factor = 0.8,
+    cost = .06,
+    prior_mean = µ,
+    prior_precision = 1 / σ^2,
+)
 
-function summarize(t::NamedTuple)
-    vd = t.value[1] - t.value[2]
-    choose_best = 
-        vd < 0 ? t.choice == 2 :
-        vd > 0 ? t.choice == 1 :
-        missing
-    (
-        ;t.rt, choose_best,
-        choose_first = t.choice .== 1,
-    )
-end
+sim_data = Table(simulate_dataset(m1_main, prepare_trials(data1)))
 
-function summarize(ts::AbstractVector{<:NamedTuple})
-    map(invert(map(summarize, ts))) do x
-        mean(skipmissing(x))
-    end
-end
-
-human_sum = summarize(all_data)
-model_sum = map(summarize, sim_data) |> Table
-
-M = Table(Table(subject=eachindex(sim_data)), Table(sim_box.(xs)), model_sum)
-M |> CSV.write("tmp/qualitative.csv")
-Table([human_sum]) |> CSV.write("tmp/qualitative_human.csv")
-convert(Dict, map(quantile, columns(model_sum)))
+# sim_data = @showprogress "Simulating " map(enumerate(xs), trial_sets) do (subject, x), trials
+#     m = BDDM(;sim_box(x)...)
+#     simulate_dataset(m, trials; subject)
+# end
 
 # %% ==================== Sobol search ====================
-version = "recovery/v6"
+
+box = Box(
+    base_precision = (.01, .1),
+    attention_factor = (0, 1.5),
+    cost = (.01, .1),
+    prior_mean = (0, 2µ),
+    prior_precision = 1 / σ^2,
+)
+
+
+version = "recovery/apr10"
+
+res = sobol_search(box, 10, sim_data, tol=20, min_multiplier=1.)
+
+best = argmax(invert(res.results).logp)
+
+res.models[best]
+
+
 run_sobol_ind(BDDM, version, sim_box, 3000, repeats=50, dt=.1, tol=0; data=flatten(sim_data))
 
 
