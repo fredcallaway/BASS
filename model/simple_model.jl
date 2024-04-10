@@ -1,7 +1,6 @@
 include("base.jl")
 include("bayes.jl")
 
-
 @with_kw struct BDM2{A,B,C,D,E,F,G}
     base_precision::A
     attention_factor::B
@@ -11,9 +10,6 @@ include("bayes.jl")
     prior_mean::F = 0.
     prior_precision::G = 1.
 end
-
-function simulate(m::BDM2, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt),
-                  save_states=false, save_presentation=false)
 
 function total_attention(m, d::NamedTuple)
     pds = d.presentation_duration
@@ -79,10 +75,11 @@ pp = Prior(BDM2,
     cost = NaN,
 )
 
+# %% --------
+
+
 post = fit2(pp, collect(data); mode=:choice)
 df = DataFrame(post)
-mean(df.lp)
-
 version = "apr5-choices"
 
 
@@ -92,14 +89,20 @@ map_bdm = fit_map(pp, collect(data); mode=:choice)
 model = instantiate(pp, map_bdm.values)
 # write_sim(model, data, version, "1-main")
 
-sim = map(data; repeats=10) do d
+sim = map(repeat(data; repeats=10)) do d
     (;d..., choice = rand() < choice_probability(model, d) ? 1 : 2)
 end
-
 mkpath("results/apr5-choice")
-sim |> CSV.write("results/apr5-choice/1-main.csv")
+sim |> make_frame |> CSV.write("results/apr5-choices/1-main.csv")
 
+# %% --------
 
+df = DataFrame(make_frame(data))
+df.pred = map(data) do d
+    choice_probability(model, d)
+end
+
+df |> CSV.write("results/apr5-choices/1-main-predictions.csv")
 
 # %% --------
 
