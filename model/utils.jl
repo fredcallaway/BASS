@@ -3,6 +3,7 @@ using NamedTupleTools
 using Statistics
 using StatsBase
 using Distributions
+using SplitApplyCombine
 flatten = SplitApplyCombine.flatten
 
 macro infiltry(ex)
@@ -29,6 +30,8 @@ Base.getindex(key) = Base.Fix2(getindex, key)
 
 basetype(f::Type) = f.name.wrapper
 basetype(f) = basetype(typeof(f))
+
+flatmap(f, xs...; kws...) = mapreduce(f, vcat, xs...; kws...)
 
 function monte_carlo(f, N=10000)
     N \ mapreduce(+, 1:N) do i
