@@ -101,6 +101,11 @@ function prepare_trials(data; dt=.01, normalize_value=false)
     end
 end 
 
+function empirical_prior(data; α=1)
+    µ, σ = juxt(mean, std)(flatten(data.value))
+    α * µ, σ
+end
+
 # %% --------
 
 function table(trials::Vector{HumanTrial})
