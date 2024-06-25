@@ -14,11 +14,15 @@ using SplitApplyCombine
 
 # %% ==================== GP likelihood ====================
 
+processed = process_sobol_result(BDDM, "apr14", "group"; verbose=true)
 
-sres = process_sobol_result(BDDM, "choice-only", "group"; verbose=true)
-res = sres
 # %% --------
-sres = deserialize("tmp/bddm/sobol/choice-only/group")
+full_res = deserialize("tmp/bddm/sobol/apr14/group");
+logp = getfield.(full_res.results, :logp)
+rank = sortperm(logp; rev=true)
+logp[rank]
+full_res.models[rank[1:10]]
+full_res.models[rank[1]]
 
 sres.trials
 

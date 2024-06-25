@@ -119,9 +119,15 @@ function presentation_generator(t::SimTrial)
 end
 
 function presentation_generator(t::HumanTrial)
+    last_seen = mod1(length(t.real_presentation_times), 2)
+    last_duration = t.real_presentation_times[end] * t.dt
+    last_dist = Truncated(t.presentation_distributions[last_seen], last_duration, Inf)
+    extended_last_duration = max(1, round(Int, rand(last_dist) / t.dt))
+    counterfactual_future = Iterators.drop(presentation_generator(SimTrial(t)), last_seen == 1 ? 1 : 0)
     Iterators.flatten((
-        zip(Iterators.cycle(eachindex(t.value)), t.real_presentation_times),
-        presentation_generator(SimTrial(t))
+        zip(Iterators.cycle(eachindex(t.value)), t.real_presentation_times[1:end-1]),
+        [(last_seen, extended_last_duration)],
+        counterfactual_future
     ))
 end
 
@@ -148,7 +154,7 @@ function subjective_precision(m, t)
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
-function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=cld(20, t.dt), 
+function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=max_rt(t),
                   save_states=false, save_presentation=false)
     # if t isa HumanTrial
     #     #error("Trying to simulate a HumanTrial")

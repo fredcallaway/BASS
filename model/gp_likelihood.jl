@@ -79,12 +79,14 @@ function fit_gp(X, nll, nll_std; gp_mean = mean(nll), opt_points=1000)
     log_noise = log.(nll_std)
     opt_idx = 1:min(size(X, 2), opt_points)
     gp = GPE(X[:, opt_idx], nll[opt_idx], gp_mean, kernel, log_noise[opt_idx])
-    optimize!(gp, domean=false, noise=false, Optim.Options(iterations=100, f_tol=.001))
-
-    yhat, yvar = predict_f(gp, X[:, opt_idx[end]:end])
-    ytrue = nll[opt_idx[end]:end]
-    √ mean((yhat .- ytrue).^2)
-
+    try
+        optimize!(gp, domean=false, noise=false, Optim.Options(iterations=100, f_tol=.01))
+    catch
+        @warn "error optimizing GP, pressing onwards"
+    end
+    # yhat, yvar = predict_f(gp, X[:, opt_idx[end]:end])
+    # ytrue = nll[opt_idx[end]:end]
+    # √ mean((yhat .- ytrue).^2)
     GPE(X, nll, gp_mean, gp.kernel, log_noise)
 end
 

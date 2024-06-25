@@ -6,6 +6,7 @@ end
 
 Box(dims...) = Box(OrderedDict(dims))
 Box(;dims...) = Box(OrderedDict(dims...))
+
 Base.length(b::Box) = length(b.dims)
 Base.getindex(box::Box, k) = box.dims[k]
 
@@ -42,14 +43,23 @@ function unscale(d, x)
     scale(x, d[1], d[2])
 end
 
-n_free(b::Box) = sum(length(d) > 1 for d in values(b.dims))
-free(b::Box) = [k for (k,d) in b.dims if length(d) > 1]
+
+
+is_free(::Union{<:Number, Missing, Nothing, <:AbstractString}) = false
+is_free(x) = try
+    length(x) > 1
+catch
+    0
+end
+
+n_free(b::Box) = sum(is_free, values(b.dims))
+free(b::Box) = [k for (k,d) in b.dims if is_free(d)]
 
 
 function apply(box::Box, x::Vector{Float64})
     xs = Iterators.Stateful(x)
     prs = map(collect(box.dims)) do (name, dim)
-        if length(dim) > 1
+        if is_free(dim)
             name => rescale(dim, popfirst!(xs))
         else
             name => dim
@@ -61,7 +71,7 @@ end
 function apply(box::Box, d::AbstractDict)
     x = Float64[]
     for (name, dim) in box.dims
-        if length(dim) > 1
+        if is_free(dim)
             push!(x, unscale(dim, d[name]))
         end
     end

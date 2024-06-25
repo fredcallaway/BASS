@@ -10,9 +10,7 @@ mkpath("results/$version")
 #SD 3.007145
 
 data1 = load_human_data(1)
-µ, σ = empirical_prior(data1)
-
-m1_main = BDDM(
+µ, σ = empirical_prior(data1) m1_main = BDDM(
     base_precision = .05,
     attention_factor = 0.8,
     cost = .06,

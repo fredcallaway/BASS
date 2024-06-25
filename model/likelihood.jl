@@ -16,7 +16,7 @@ function sample_choice_rt(m, t::Trial, ε)
     end
 end
 
-function fixed_loglike(m, t::Trial; ε=.01, tol=0, N=10000)
+function fixed_loglike(m, t::Trial; ε=.05, tol=0, N=10000)
     hits = 0
     for i in 1:N
         if is_hit(sample_choice_rt(m, t, ε), t, tol)
@@ -33,7 +33,7 @@ function chance_loglike(trials; tol)
     end
 end
 
-function ibs_loglike(m, trials::Vector{HumanTrial}; repeats=1, ε=.01, tol=0, min_multiplier=1.2)
+function ibs_loglike(m, trials::Vector{HumanTrial}; repeats=1, ε=.05, tol=0, min_multiplier=1.2)
     min_logp = min_multiplier * chance_loglike(trials; tol)
     ibs(trials; repeats, min_logp) do t
         is_hit(sample_choice_rt(m, t, ε), t, tol)
