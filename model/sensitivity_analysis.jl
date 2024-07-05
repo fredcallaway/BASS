@@ -1,6 +1,5 @@
 include("base.jl")
-using RCall
-using DataFrames
+include("regressions.jl")
 
 # %% --------
 
@@ -15,7 +14,7 @@ function load_frame(model, analysis=:choice)
 
     df = flatmap(results) do x
         map(getfield(x, analysis)) do reg
-            (;x.prm..., reg...)
+            (;x.prm..., x.accuracy, reg...)
         end
     end |> DataFrame
     df.model .= model[3:end]
@@ -33,6 +32,13 @@ human = DataFrame(fit_regressions(DataFrame(make_frame(data1)); study=1).choice)
 @rput model human
 
 R"""
+
+model_pal = scale_colour_manual(values=c(
+    main = BLUE,
+    flat_prior = GRAY,
+    zero_mean = RED
+), aesthetics=c("fill", "colour"), name="")
+
 human_wide = human %>%
     select(term, estimate) %>%
     pivot_wider(names_from=term, values_from=estimate)
@@ -45,9 +51,12 @@ model %>%
     select(model, `spdfirst:savV`, spdfirst) %>%
     ggplot(aes(spdfirst, `spdfirst:savV`)) +
     geom_point(mapping=aes(color=model), size=.5) +
-    geom_point(data=human_wide, size=2) +
+    geom_point(data=human_wide, size=2, color="black") +
+    geom_point(data=human_wide, size=1, color="white") +
+    geom_point(data=human_wide, size=.3, color="black") +
     labs(x="Relative Presentation Duration", y="Relative Presentation\nby Overall Value") +
-    theme_classic()
+    theme_classic() +
+    model_pal
 
     # facet_wrap(~model)
 
@@ -62,7 +71,7 @@ human_choice = DataFrame(reg2.choice)
 human_rt = DataFrame(reg2.rt)
 
 model_choice, model_rt = map([:choice, :rt]) do analysis
-    mapreduce(vcat, ["2-main", "2-nometa"]) do name
+    mapreduce(vcat, ["2-main", "2-biased_mean", "2-zero_mean", "2-nometa"]) do name
         df = load_frame(name, analysis)
         if "subjective_slope" ∉ names(df)
             df.subjective_slope .= NaN
@@ -74,32 +83,63 @@ end
 
 @rput model_choice model_rt human_choice human_rt
 
+human_accuracy = reg2.accuracy
+@rput human_accuracy
 # %% --------
 
 R"""
+
+model_pal = scale_colour_manual(values=c(
+    main = BLUE,
+    flat_prior = GRAY,
+    zero_mean = RED,
+    biased_mean = PURPLE,
+    nometa = GRAY
+), aesthetics=c("fill", "colour"), name="")
+
 human_wide = human_choice %>%
     select(term, estimate) %>%
     pivot_wider(names_from=term, values_from=estimate)
 
 model_choice %>%
-    filter(model != "biased_mean") %>%
+    # filter(model != "biased_mean") %>%
     group_by(model) %>%
     select(model, base_precision, term, estimate) %>%
     pivot_wider(names_from=term, values_from=estimate) %>%
     select(model, `ConfDif:savV`, ConfDif) %>%
     ggplot(aes(ConfDif, `ConfDif:savV`)) +
     geom_point(mapping=aes(color=model), size=.5) +
-    geom_point(data=human_wide, size=2) +
+    geom_point(data=human_wide, size=2, color="black") +
+    geom_point(data=human_wide, size=1, color="white") +
+    geom_point(data=human_wide, size=.3, color="black") +
+    ggtitle("Effect on Choice") +
     # labs(x="Relative Presentation Duration", y="Relative Presentation\nby Overall Value") +
     theme_classic() +
-    scale_colour_manual(values=c(
-        main=BLUE,
-        nometa=ORANGE
-    ), aesthetics=c("fill", "colour"), name="")
+    model_pal
+    # +
+    # scale_colour_manual(values=c(
+    #     main=BLUE,
+    #     nometa=ORANGE
+    # ), aesthetics=c("fill", "colour"), name="")
 
     # facet_wrap(~model)
 
 fig("sensitivity_conf_choice", w=4, pdf=T)
+"""
+
+R"""
+
+model_rt %>%
+    filter(model %in% c("main", "nometa")) %>%
+    # filter(abs(accuracy - human_accuracy) < .05) %>%
+    group_by(model) %>%
+    # filter((model == "nometa") | (base_precision + 5 * confidence_slope > .01)) %>%
+    # select(model, base_precision, term, estimate, std_error, accuracy) %>%
+    filter(term == "totalConfidence") %>%
+    filter(model == "nometa") %>%
+    arrange(estimate)
+
+
 """
 
 R"""
@@ -108,25 +148,27 @@ human_wide = human_rt %>%
     pivot_wider(names_from=term, values_from=estimate)
 
 model_rt %>%
-    filter(model != "biased_mean") %>%
+    filter(model %in% c("main", "nometa")) %>%
+    # filter(abs(accuracy - human_accuracy) < .05) %>%
     group_by(model) %>%
     # filter((model == "nometa") | (base_precision + 5 * confidence_slope > .01)) %>%
-    select(model, base_precision, term, estimate) %>%
+    select(model, base_precision, term, estimate, std_error, accuracy) %>%
+    filter(term == "totalConfidence") %>%
     pivot_wider(names_from=term, values_from=estimate) %>%
-    ggplot(aes(totalConfidence, sVD)) +
+    ggplot(aes(accuracy, totalConfidence)) +
     geom_point(mapping=aes(color=model), size=.5) +
-    geom_point(data=human_wide, size=2) +
-    geom_vline(xintercept=0) +
-    ggtitle("Effect on RT") +
-    # labs(x="Relative Presentation Duration", y="Relative Presentation\nby Overall Value") +
+    # geom_point(data=human_wide, size=4, shape="+", color="green") +
+    geom_point(data=human_wide, size=2, color="black") +
+    geom_point(data=human_wide, size=1, color="white") +
+    geom_point(data=human_wide, size=.3, color="black") +
+    geom_hline(yintercept=0) +
+    labs(y="overall confidence → RT", x="choice accuracy") +
     theme_classic() +
-    scale_colour_manual(values=c(
-        main=BLUE,
-        nometa=ORANGE
-    ), aesthetics=c("fill", "colour"), name="")
+    model_pal
 
 
-fig("sensitivity_conf_rt", w=4, pdf=T)
+
+fig("sensitivity_conf_rt", w=4, h=3, pdf=T)
 """
 
 d2 = DataFrame(make_frame(data2))
@@ -240,14 +282,26 @@ fig(w=5, h=4)
 
 
 R"""
-df %>%
-    select(-c(prior_mean, prior_precision)) %>%
-    pivot_longer(c(base_precision, attention_factor, cost), names_to="parameter", values_to="param") %>%
-    ggplot(aes(param, estimate, color=model)) +
-    geom_hline(mapping=aes(yintercept=estimate), data=human) +
-    facet_grid(term~parameter, scales="free") +
-    geom_point(size=.1, alpha=.1) +
-    gam_fit()
 
-fig(w=7, h=10)
+model_choice %>%
+    # filter(model != "biased_mean") %>%
+    group_by(model) %>%
+    select(model, base_precision, term, estimate) %>%
+    pivot_wider(names_from=term, values_from=estimate) %>%
+    select(model, `ConfDif:savV`, ConfDif)
+
+"""
+R"""
+
+model_choice %>%
+    filter(model == "main") %>%
+    pivot_longer(c(base_precision, confidence_slope, attention_factor, cost), names_to="parameter", values_to="param") %>%
+    filter(term == "ConfDif:savV") %>%
+    ggplot(aes(param, estimate, color=model)) +
+    geom_hline(mapping=aes(yintercept=estimate), data=filter(human_choice, term == "ConfDif:savV")) +
+    facet_wrap(~parameter, scales="free", nrow=1) +
+    geom_point(size=.1, alpha=.1)
+    # gam_fit()
+
+fig(w=7)
 """

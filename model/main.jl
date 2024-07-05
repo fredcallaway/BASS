@@ -52,7 +52,7 @@ data2 = load_human_data(2)
 
 µ, σ = empirical_prior(data2)
 m2_main = BDDM(
-    base_precision = 0.0005,
+    base_precision = 0.0085,
     confidence_slope = .008,
     attention_factor = 0.8,
     cost = .06,

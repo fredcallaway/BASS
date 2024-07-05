@@ -145,12 +145,12 @@ initialize!(pol::CantStopWontStop, t::Trial) = nothing
 
 "Precision of one sample, including confidence but not attention"
 function objective_precision(m, t)
-    @. t.dt * (m.base_precision + m.confidence_slope * t.confidence)
+    @. t.dt * (m.base_precision + m.confidence_slope * (t.confidence - 1.))
 end
 
 "*Perceived* precision of one sample"
 function subjective_precision(m, t)
-    @. t.dt * (m.base_precision + m.subjective_offset + m.subjective_slope * m.confidence_slope * t.confidence)
+    @. t.dt * (m.base_precision + m.subjective_offset + m.subjective_slope * m.confidence_slope * (t.confidence - 1.))
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
@@ -170,11 +170,6 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     presentation_durations = save_presentation ? [time_to_switch] : nothing
     obj_conf = objective_precision(m, t)
     subj_conf = subjective_precision(m, t)
-
-    # objective_precision = @. m.base_precision * t.confidence ^ m.confidence_slope
-    # subjective_precision = @. (m.base_precision + m.over_confidence_intercept) + 
-                               # (m.confidence_slope + m.over_confidence_slope) * t.confidence
-
     attention = zeros(m.N); λ_objective = zeros(m.N); λ_subjective = zeros(m.N)
 
     while true
