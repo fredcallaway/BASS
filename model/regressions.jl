@@ -50,10 +50,10 @@ function fit_regressions(df; study)
     choice_fit = tidy(glm(choice_formula, data = df, family=binomial(link='logit')))
     rt_fit = tidy(lm(rt_formula, data = df))
     accuracy = with(subset(df, val1 != val2), mean((val1 > val2) == (choice == 1)))
+    rt_quantiles = with(df, quantile(rt))
     """
     (;choice = df2tuples(rcopy(R"choice_fit")),
       rt = df2tuples(rcopy(R"rt_fit")),
-      accuracy = rcopy(R"accuracy")
-      )
+      accuracy = rcopy(R"accuracy"))
 end
 

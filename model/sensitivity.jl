@@ -23,9 +23,7 @@ function run_sensitivity(name, data, box; N=1000)
             prm = (;prm..., subjective_offset)
         end
         model = BDDM(;prm...)
-        df = DataFrame(make_sim(model, data; repeats=30))
-
-
+        df = DataFrame(make_sim(model, data; repeats=100))
 
         (;prm, fit_regressions(df; study)...)
     end
@@ -34,23 +32,6 @@ function run_sensitivity(name, data, box; N=1000)
 end
 
 
-# %% ==================== study 1 ====================
-
-
-# data1 = load_human_data(1)
-# µ, σ = empirical_prior(data1)
-# box1 = Box(
-#     base_precision = (.01, .1),
-#     attention_factor = (0, 1.),
-#     cost = (.01, .1),
-#     prior_mean = µ,
-#     prior_precision = 1 / σ^2,
-# )
-
-# run_sensitivity("1-main", data1, box1)
-# run_sensitivity("1-biased_mean", data1, update(box1, prior_mean=(µ/2, µ)))
-# run_sensitivity("1-zero_mean", data1, update(box1, prior_mean = 0.))
-# run_sensitivity("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
 
 # %% ==================== study 2 ====================
 
@@ -60,7 +41,7 @@ data2 = load_human_data(2)
 box2 = Box(
     base_precision = (.001, .1, :log),
     confidence_slope = (.001, .02),
-    attention_factor = (0, 1.),
+    attention_factor = (0, .95),
     cost = (.01, .1),
     prior_mean = µ,
     prior_precision = 1 / σ^2,
@@ -69,6 +50,24 @@ box2 = Box(
 )
 
 run_sensitivity("2-main", data2, box2)
+run_sensitivity("2-nometa", data2, update(box2, subjective_slope = 0, subjective_offset = missing))
 run_sensitivity("2-biased_mean", data2, update(box2, prior_mean = (0.1µ, 0.9µ)))
 run_sensitivity("2-zero_mean", data2, update(box2, prior_mean = 0.))
-run_sensitivity("2-nometa", data2, update(box2, subjective_slope = 0, subjective_offset = missing))
+
+# %% ==================== study 1 ====================
+
+
+data1 = load_human_data(1)
+µ, σ = empirical_prior(data1)
+box1 = Box(
+    base_precision = (.01, .1),
+    attention_factor = (0, 0.95),
+    cost = (.01, .1),
+    prior_mean = µ,
+    prior_precision = 1 / σ^2,
+)
+
+run_sensitivity("1-main", data1, box1)
+run_sensitivity("1-biased_mean", data1, update(box1, prior_mean=(.1µ, .9µ)))
+run_sensitivity("1-zero_mean", data1, update(box1, prior_mean = 0.))
+run_sensitivity("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
