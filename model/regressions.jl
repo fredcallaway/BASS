@@ -54,6 +54,8 @@ function fit_regressions(df; study)
     """
     (;choice = df2tuples(rcopy(R"choice_fit")),
       rt = df2tuples(rcopy(R"rt_fit")),
-      accuracy = rcopy(R"accuracy"))
+      accuracy = rcopy(R"accuracy"),
+      rt_quantiles = rcopy(R"rt_quantiles"),
+      )
 end
 

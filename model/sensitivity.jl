@@ -23,7 +23,7 @@ function run_sensitivity(name, data, box; N=1000)
             prm = (;prm..., subjective_offset)
         end
         model = BDDM(;prm...)
-        df = DataFrame(make_sim(model, data; repeats=100))
+        df = DataFrame(make_sim(model, data; repeats=30))
 
         (;prm, fit_regressions(df; study)...)
     end
