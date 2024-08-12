@@ -6,11 +6,9 @@ mkpath("results/$version")
 
 # %% ==================== Study 1 main ====================
 
-#Rating Study 1: mean 4.789534
-#SD 3.007145
-
 data1 = load_human_data(1)
-µ, σ = empirical_prior(data1) m1_main = BDDM(
+µ, σ = empirical_prior(data1)
+m1_main = BDDM(
     base_precision = .05,
     attention_factor = 0.8,
     cost = .06,
@@ -45,8 +43,6 @@ m1_biased = mutate(m1_main,
 write_sim(m1_biased, data1, "1-biased")
 
 # %% ==================== Study 2 main ====================
-#Study2: 5.134873
-#3.069003
 
 data2 = load_human_data(2)
 
@@ -93,7 +89,6 @@ df = write_sim(over_models, data2, "2-overconf"; repeats=5)
 
 # %% ==================== Study 2 biased prior ====================
 
-#m = deserialize("tmp/v7-2-best")
 m2_biased = mutate(m2_main,
     prior_mean = empirical_prior(data2, α=0.7)[1]
 )
