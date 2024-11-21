@@ -16,7 +16,7 @@ m1_main = BDDM(
     prior_precision = 1 / σ^2,
 )
 
-df = write_sim(m1_main, data1, "1-main")
+df = write_sim(m1_main, data1, version, "1-main")
 
 # %% ==================== Study 1 flat prior ====================
 
@@ -24,11 +24,7 @@ df = write_sim(m1_main, data1, "1-main")
 m1_flat = mutate(m1_main,
     prior_precision = 1e-6
 )
-df = write_sim(m1_flat, data1, "1-flatprior")
-
-
-true && false
-x == x
+df = write_sim(m1_flat, data1, version, "1-flatprior")
 
 # %% ==================== Study 1 zero prior ====================
 
@@ -36,7 +32,7 @@ x == x
 m1_zero = mutate(m1_main,
     prior_mean = 0
 )
-write_sim(m1_zero, data1, "1-zeroprior")
+write_sim(m1_zero, data1, version, "1-zeroprior")
 
 # %% ==================== Study 1 biased prior ====================
 
@@ -44,7 +40,7 @@ write_sim(m1_zero, data1, "1-zeroprior")
 m1_biased = mutate(m1_main,
     prior_mean = empirical_prior(data1, α=0.8)[1]
 )
-write_sim(m1_biased, data1, "1-biased")
+write_sim(m1_biased, data1, version, "1-biased")
 
 # %% ==================== Study 2 main ====================
 
@@ -59,7 +55,7 @@ m2_main = BDDM(
     prior_mean = µ,
     prior_precision = 1 / σ^2
 )
-df = write_sim(m2_main, data2, "2-main")
+df = write_sim(m2_main, data2, version, "2-main")
 
 
 
@@ -70,7 +66,7 @@ m2_nometa = mutate(m2_main,
     subjective_slope = 0,
     subjective_offset = avg_confidence
 )
-df = write_sim(m2_nometa, data2, "2-nometa")
+df = write_sim(m2_nometa, data2, version, "2-nometa")
 
 
 # %% ==================== Study 2 overconfidence ====================
@@ -89,14 +85,14 @@ over_models = map(0:.005:.04) do subjective_offset
     mutate(m2_main; subjective_offset)
 end
 
-df = write_sim(over_models, data2, "2-overconf"; repeats=5)
+df = write_sim(over_models, data2, version, "2-overconf"; repeats=5)
 
 # %% ==================== Study 2 biased prior ====================
 
 m2_biased = mutate(m2_main,
     prior_mean = empirical_prior(data2, α=0.7)[1]
 )
-write_sim(m2_biased, data1, "2-biased")
+write_sim(m2_biased, data1, version, "2-biased")
 
 
 # # %% ==================== Study 2 overconfidence-slope ====================

@@ -49,7 +49,6 @@ function make_sim(model, data; normalize_value=false, repeats=30)
     df
 end
 
-
 function write_sim(model, data, version, name; normalize_value=false, repeats=30)
     mkpath("results/$version")
     df = make_sim(model, data; normalize_value, repeats)
