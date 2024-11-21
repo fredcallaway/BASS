@@ -35,3 +35,7 @@ function run_sobol_group(model, version, box, N; data=load_human_data(), kws...)
     serialize("$path/group", res)
     res
 end
+
+# fast foo′
+
+# ss06 cv01 

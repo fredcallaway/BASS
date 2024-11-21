@@ -26,6 +26,10 @@ m1_flat = mutate(m1_main,
 )
 df = write_sim(m1_flat, data1, "1-flatprior")
 
+
+true && false
+x == x
+
 # %% ==================== Study 1 zero prior ====================
 
 #m = deserialize("tmp/v7-2-best")

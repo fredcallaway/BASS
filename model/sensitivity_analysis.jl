@@ -25,7 +25,6 @@ function load_frame(model, analysis=:choice)
     df
 end
 
-load_frame("2-main")
 # %% ==================== study 1 ====================
 
 model1 = mapreduce(load_frame, vcat, ["1-main", "1-biased_mean", "1-zero_mean", "1-flat_prior"])

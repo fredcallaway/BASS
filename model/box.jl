@@ -80,6 +80,8 @@ end
 
 (box::Box)(x) = apply(box, x)
 
+
+
 # valmap(f, d::AbstractDict) = Dict(k => f(v) for (k, v) in d)
 function grid(n::Int, box::Box)
     xs = range(0, 1, length=n)

@@ -1,26 +1,28 @@
 library(tidyverse)
 library(lme4)
-library(jtools)
+# library(jtools)
 library(magrittr)
 library(purrr)
-library(rmdformats)
+# library(rmdformats)
 library(patchwork)
-library(jsonlite)
-library(tidyjson)
+# library(jsonlite)
+# library(tidyjson)
 library(ggbeeswarm)
 library(stickylabeller)
-library(ggeffects)
+# library(ggeffects)
 library(rlang)
-library(knitr)
-library(ggside)
+# library(knitr)
+# library(ggside)
 library(broom.mixed)
 library(lmerTest)
-library(optigrab)
+# library(optigrab)
 library(formula.tools)
 library(colorspace)
-library(tune)
+# library(tune)
 library(infer)
-# library(kableExtra)
+# library(ggrastr)
+
+
 
 # %% ==================== Project-specific ====================
 
@@ -329,11 +331,11 @@ patch_row = function(tag, p1, ...) {
 
 
 
-geom_xdensity = list(
+geom_xdensity = function() list(
     geom_xsidedensity(aes(y=stat(density))),
     scale_xsidey_continuous(breaks = NULL, labels = "")
 )
-geom_ydensity = list(
+geom_ydensity = function() list(
     geom_ysidedensity(aes(x=stat(density))),
     scale_ysidex_continuous(breaks = NULL, labels = "")
 )

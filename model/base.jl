@@ -9,6 +9,7 @@ using CSV
 # %% --------
 
 
+
 function empirical_prior(data; α=1)
     µ, σ = juxt(mean, std)(flatten(data.value))
     α * µ, σ

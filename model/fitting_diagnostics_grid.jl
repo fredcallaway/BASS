@@ -7,7 +7,7 @@ function plot_marginals(run_name)
     mkpath(figs_path)
 
     for subject in readdir(tmp_path)
-        @unpack box, results, chance = deserialize(tmp_path * subject)
+        (;box, results, chance) = deserialize(tmp_path * subject)
         loss = -getfield.(results, :logp)
         chance = -chance
         loss = fillmissing.(loss, chance)
@@ -37,7 +37,7 @@ plot_marginals("bddm/grid/v4")
 subject = 1064
 tmp_path = "tmp/bddm/grid/v4/"
 
-@unpack box, results, chance, ibs_kws, trials = deserialize("$tmp_path/$subject");
+(;box, results, chance, ibs_kws, trials = deserialize("$tmp_path/$subject");
 
 
 m = BDDM(;keymax(getfield.(results, :logp))...)

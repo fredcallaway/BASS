@@ -39,7 +39,7 @@ end
 
 "Short-circuit voc"
 function voc_is_positive(pol::Policy, s, t, offset)
-    @unpack λ_avg, m = pol
+    (;λ_avg, m) = pol
     voc_n(m, s, 1, λ_avg, t.dt) > 0 && return true
     # NOTE: the target keyword relies on my fork of Optim.jl
     # https://github.com/fredcallaway/Optim.jl/

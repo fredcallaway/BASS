@@ -1,10 +1,9 @@
 using Distributions
 using Random
-using Parameters
 # ---------- Basics ---------- #
 
 "Bayesian Drift Diffusion Model"
-@with_kw struct BDDM
+@kwdef struct BDDM
     N::Int = 2                            # number of items
     base_precision::Float64 = 0.3         # precision per second of attended item with confidence=0
     attention_factor::Float64 = 1.        # down-weighting of precision for unattended item (less than 1)

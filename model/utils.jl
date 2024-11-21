@@ -147,46 +147,10 @@ end
 
 getfields(x) = (getfield(x, f) for f in fieldnames(typeof(x)))
 
-# %% ==================== Axis Keys ====================
-using AxisKeys
-function grid(;kws...)
-    vals = collect(values(kws))
-    has_multi = map(vals) do v
-        applicable(length, v) && length(v) > 1
+function grid(; kws...)
+    X = map(Iterators.product(values(kws)...)) do x
+        (; zip(keys(kws), x)...)
     end
-    singles = (;zip(keys(kws)[.!has_multi], vals[.!has_multi])...)
-    multis = (;zip(keys(kws)[has_multi], vals[has_multi])...)
-    X = map(Iterators.product(values(multis)...)) do x
-        nt = (; singles..., zip(keys(multis), x)..., )
-        NamedTuple(k => nt[k] for k in keys(kws))
-    end
-    KeyedArray(X; multis...)
-end
-
-function keyed(name, xs)
-    KeyedArray(xs; Dict(name => xs)...)
-end
-
-keymax(X::KeyedArray) = (; (d=>x[i] for (d, x, i) in zip(dimnames(X), axiskeys(X), argmax(X).I))...)
-keymax(x::KeyedArray{<:Real, 1}) = axiskeys(x, 1)[argmax(x)]
-
-keymin(X::KeyedArray) = (; (d=>x[i] for (d, x, i) in zip(dimnames(X), axiskeys(X), argmin(X).I))...)
-keymin(x::KeyedArray{<:Real, 1}) = axiskeys(x, 1)[argmin(x)]
-
-Base.dropdims(idx::Union{Symbol,Int}...) = X -> dropdims(X, dims=idx)
-
-
-function table(X::KeyedArray)
-    map(collect(pairs(X))) do (idx, v)
-        keyvals = (name => keys[i] for (name, keys, i) in zip(dimnames(X), axiskeys(X), idx.I))
-        (;keyvals..., value=v)
-    end[:]
-end
-
-function table(X::KeyedArray{<:NamedTuple})
-    map(collect(pairs(X))) do (idx, v)
-        keyvals = (name => keys[i] for (name, keys, i) in zip(dimnames(X), axiskeys(X), idx.I))
-        (;keyvals..., v...,)
-    end[:]
+    X
 end
 

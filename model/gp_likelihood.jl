@@ -34,7 +34,7 @@ end
 
 function SobolResult(model, version, subject)
     path = "tmp/$(lowercase(string(model)))/sobol/$version/$subject"
-    @unpack box, xs, results, chance, ibs_kws, trials = deserialize(path);
+    (;box, xs, results, chance, ibs_kws, trials) = deserialize(path)
 
     X = combinedims(xs)
     nll = [-r.logp for r in results]
