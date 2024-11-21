@@ -1,3 +1,5 @@
+# %% --------
+
 source("base.r")
 
 version <- "2024-11-20"
@@ -33,17 +35,11 @@ mle |>
         values_from = value
     ) |> 
     ggplot(aes(true, fit)) +
+    geom_abline(slope=1, intercept=0) +
     geom_point(alpha=0.2) +
     facet_wrap(~param, scales="free") +
-    geom_abline(slope=1, intercept=0)
+    gam_fit(k=3) +
+    gridlines +
+    theme(aspect.ratio = 1)
 
-fig(w=6)
-# %% --------
-
-mle |> 
-    ggplot(aes(x=base_precision_true, y=base_precision_fit)) +
-    geom_point() +
-    geom_abline(slope=1, intercept=0)
-
-fig(w=4)
-# %% --------
+fig(w=7)
