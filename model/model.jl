@@ -28,7 +28,7 @@ Base.copy(s::State) = State(copy(s.µ), copy(s.λ))
 "A single choice trial"
 abstract type Trial end
 
-struct HumanTrial <: Trial
+@kwdef struct HumanTrial <: Trial
     value::Vector{Float64}
     confidence::Vector{Float64}
     presentation_distributions::Vector{Distribution}  # presentation time distribution

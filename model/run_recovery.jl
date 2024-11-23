@@ -62,7 +62,7 @@ else
     PARAM_ID = parse(Int, ARGS[1])
     model = BDDM(; params[PARAM_ID]...)
     sim_data = simulate_dataset(model, prepare_trials(data1; dt=.025));
-    grid_search(BDDM, "recovery/$version/$(PARAM_ID)", box, 7, sim_data, repeats=10, ε=.05; tol=4)
+    grid_search(BDDM, "recovery/$version/$(PARAM_ID)", box, 7, sim_data; repeats=10, ε=.05, tol=4)
 end
 
 

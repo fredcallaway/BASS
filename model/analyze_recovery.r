@@ -2,12 +2,13 @@
 
 source("base.r")
 
-version <- "2024-11-20"
+# version <- "recovery/2024-11-20"
+version <- "recovery-artificial/2024-11-21"
 
-generating <- read_csv(glue("results/recovery/{version}/generating_params.csv")) |> 
+generating <- read_csv(glue("results/{version}/generating_params.csv")) |> 
     select(!starts_with("prior"))
 
-likelihoods <- read_csv(glue("results/recovery/{version}/likelihoods.csv"))
+likelihoods <- read_csv(glue("results/{version}/likelihoods.csv"))
 
 mle <- likelihoods |> 
     group_by(param_id, cost, base_precision, attention_factor) |> 
@@ -15,13 +16,11 @@ mle <- likelihoods |>
         logp = sum(logp),
         sd = sqrt(sum(std ^ 2))
     ) |> 
-    filter(!is.na(sd)) |> 
     group_by(param_id) |> 
     slice_max(logp) |> 
     left_join(generating, by="param_id", suffix=c("_fit", "_true"))
 
 # %% --------
-
 mle |>
     select(-c(logp, sd)) |> 
     pivot_longer(
@@ -37,9 +36,10 @@ mle |>
     ggplot(aes(true, fit)) +
     geom_abline(slope=1, intercept=0) +
     geom_point(alpha=0.2) +
+    stat_summary(fun=mean, geom="point", shape='*', size=10, color=RED) +
     facet_wrap(~param, scales="free") +
-    gam_fit(k=3) +
+    gam_fit(k=3, color=RED, , fill=RED, alpha=0.1) +
     gridlines +
     theme(aspect.ratio = 1)
 
-fig(w=7)
+fig("recovery_fits",w=7)
