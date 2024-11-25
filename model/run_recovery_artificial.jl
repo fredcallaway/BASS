@@ -9,7 +9,7 @@ using SplitApplyCombine
 using DataFrames, CSV
 # %% --------
 
-version = "2024-11-21"
+version = "2024-11-23"
 
 tmp_path = "tmp/bddm/grid/recovery-artificial/$version"
 results_path = "results/recovery-artificial/$version"
@@ -18,31 +18,27 @@ mkpath(results_path)
 
 data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
-fit_box = Box(
-    base_precision=(0.01, 0.1),
-    attention_factor=(0.5, 1.5),
-    cost=(0.01, 0.1),
-    prior_mean=µ,
-    prior_precision=1 / σ^2,
-)
-sim_box = Box(
-    base_precision = .055,
-    attention_factor = (0.5, 1.5),
-    cost = .055,
+sim_box = fit_box = Box(
+    base_precision=.05,
+    attention_factor=(0.0, 1.5),
+    cost=.05,
     prior_mean=µ,
     prior_precision=1 / σ^2,
 )
 
 SimTrial(t::SimTrial) = t
 
-function simulate_data(model)
-    vs = range(0, 1, length=3)[1:end-1]
+# %% --------
+
+function simulate_data(model; n_subjects=100, n_values=20)
+    qs = range(0, 1, length=n_values+2)[2:end-1]
+    vs = quantile.(Ref(Normal(µ, σ)), qs)
 
     g = grid(
         v1=vs,
         v2=vs,
         order=[:longfirst, :shortfirst],
-        subject=1:100
+        subject=1:n_subjects
     )
 
     trials = map(g) do (; v1, v2, order, subject)
@@ -57,12 +53,21 @@ function simulate_data(model)
             dt=0.025
         )
     end[:]
+    data = simulate_dataset(model, trials)
 
-    simulate_dataset(model, trials)
+    if mean(isequal(MAX_RT),getfield.(data, :rt)) > 0.1
+        error("Too many timeouts")
+    end
+
+    filter!(data) do t
+        t.rt < MAX_RT
+    end
 end
 
+# %% --------
+
 if isempty(ARGS) || ARGS[1] == "setup"
-    params = reduce(vcat, grid(7, sim_box))
+    params = reduce(vcat, grid(16, sim_box))
     serialize("$tmp_path/params", params)
     @show length(params)
     println("Wrote $tmp_path/params")
@@ -86,7 +91,8 @@ else
     PARAM_ID = parse(Int, ARGS[1])
     model = BDDM(; params[PARAM_ID]...)
     sim_data = simulate_data(model)
-    grid_search(BDDM, "recovery-artificial/$version/$(PARAM_ID)", fit_box, 7, sim_data; repeats=10, ε=.05, tol=4)
+    @show length(sim_data)
+    grid_search(BDDM, "recovery-artificial/$version/$(PARAM_ID)", fit_box, 16, sim_data; repeats=10, ε=.05, tol=4)
 end
 
 

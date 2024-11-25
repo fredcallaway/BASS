@@ -3,7 +3,7 @@
 source("base.r")
 
 # version <- "recovery/2024-11-20"
-version <- "recovery-artificial/2024-11-21"
+version <- "recovery-artificial/2024-11-23"
 
 generating <- read_csv(glue("results/{version}/generating_params.csv")) |> 
     select(!starts_with("prior"))
@@ -42,4 +42,4 @@ mle |>
     gridlines +
     theme(aspect.ratio = 1)
 
-fig("recovery_fits",w=7)
+fig("recovery_artificial",w=7)

@@ -1,7 +1,7 @@
 using ProgressMeter
 
 function grid_search(model, version, box, grid_size, data;
-    ε=0.01, tol=4, repeats=10, min_multiplier=1.2)
+    ε=0.01, tol=4, repeats=10, min_multiplier=1.2, progress=isa(stderr, Base.TTY))
     path = "tmp/$(lowercase(string(model)))/grid/$version"
     println("Writing results to $path")
     mkpath(path)
@@ -21,7 +21,7 @@ function grid_search(model, version, box, grid_size, data;
         trials = prepare_trials(Table(subj_data); dt=0.025)
 
         ibs_kws = (; ε, tol, repeats, min_multiplier)
-        results = @showprogress out pmap(candidates) do m
+        results = @showprogress out enabled=progress pmap(candidates) do m
             ibs_loglike(m, trials; ibs_kws...)
         end
         chance = chance_loglike(trials; ibs_kws.tol)
