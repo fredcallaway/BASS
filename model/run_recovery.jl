@@ -9,7 +9,8 @@ using SplitApplyCombine
 using DataFrames, CSV
 # %% --------
 
-version = "2024-11-20"
+# version = "2024-11-20"
+version = "2024-12-03"
 data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
 
@@ -38,6 +39,7 @@ if isempty(ARGS) || ARGS[1] == "setup"
     end
     setdiff!(full_params, params)
     push!(params, full_params...)
+    mkpath("tmp/bddm/grid/recovery/$version/")
     serialize("tmp/bddm/grid/recovery/$version/params", params)
     # ----------------------------
 elseif ARGS[1] == "process"
@@ -45,8 +47,8 @@ elseif ARGS[1] == "process"
     mkpath("results/recovery/$version")
 
     path = "tmp/bddm/grid/recovery/$version/"
-    flatmap(eachindex(params)) do param_id
-        flatmap(readdir("$path/$param_id")) do subject
+    flatmap([2]) do param_id
+        flatmap(eachindex(params)) do subject
             x = deserialize("$path/$param_id/$subject")
             map(x.candidates[:], x.results[:]) do c, r
                 (; param_id, subject, c.base_precision, c.attention_factor, c.cost, r.logp, r.std, r.converged)
