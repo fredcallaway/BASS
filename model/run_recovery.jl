@@ -10,7 +10,7 @@ using DataFrames, CSV
 # %% --------
 
 # version = "2024-11-20"
-version = "2024-12-03"
+version = "2024-12-04"
 data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
 
@@ -64,7 +64,7 @@ else
     PARAM_ID = parse(Int, ARGS[1])
     model = BDDM(; params[PARAM_ID]...)
     sim_data = simulate_dataset(model, prepare_trials(data1; dt=.025));
-    grid_search(BDDM, "recovery/$version/$(PARAM_ID)", box, 7, sim_data; repeats=10, ε=.05, tol=4)
+    grid_search(BDDM, "recovery/$version/$(PARAM_ID)", fit_box, 7, sim_data; repeats=10, ε=.05, tol=4)
 end
 
 

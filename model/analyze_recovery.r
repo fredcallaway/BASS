@@ -2,44 +2,37 @@
 
 source("base.r")
 
-version <- "recovery/2024-11-20"
 # version <- "recovery-artificial/2024-11-25B"
 # version <- "recovery-artificial/2024-11-23"
 # version <- "recovery-artificial-rapid/2024-11-25"
+versions <- c(
+    "recovery/2024-11-20", 
+    "recovery/2024-12-03"
+)
 
-generating <- read_csv(glue("results/{version}/generating_params.csv")) |> 
-    select(!starts_with("prior"))
+read_csvs <- function(name) {
+    map(versions, ~ 
+        read_csv(glue("results/{.x}/{name}.csv")) |> 
+        mutate(version = substr(.x, nchar(.x)-4, nchar(.x)))
+    ) |> 
+    bind_rows()
+}
 
-likelihoods <- read_csv(glue("results/{version}/likelihoods.csv"))
+generating <- read_csvs("generating_params") |> select(!starts_with("prior"))
+likelihoods <- read_csvs("likelihoods")
 
 total_likelihoods <- likelihoods |> 
-    group_by(param_id, cost, base_precision, attention_factor) |> 
+    group_by(version, param_id, cost, base_precision, attention_factor) |> 
     filter(n() == max(n())) |> 
     summarize(
         logp = sum(logp),
         sd = sqrt(sum(std ^ 2))
     )
 
-total_likelihoods |> filter(param_id == 27) |> 
-    drop_na(sd) |> 
-    with(sum(logp))
-
-likelihoods |> 
-    group_by(param_id, cost, base_precision, attention_factor) |> 
-    filter(n() == max(n())) |> 
-    ungroup() |> 
-    count(param_id) |> 
-    filter(param_id == 27)
-
-
-# generating |> 
-#     filter(between(attention_factor, .6, .7), base_precision == .07, cost==.04) |> 
-    
-
 mle <- total_likelihoods |> 
-    group_by(param_id) |> 
+    group_by(version, param_id) |> 
     slice_max(logp) |> 
-    left_join(generating, by="param_id", suffix=c("_fit", "_true"))
+    left_join(generating, by=c("version", "param_id"), suffix=c("_fit", "_true"))
 
 # %% --------
 
@@ -120,18 +113,18 @@ fig("recovery-heatmap", w=10, h=5)
 # %% --------
 total_likelihoods |> 
     filter(param_id == 2) |> 
-    group_by(param_id) |> 
-    left_join(generating, by="param_id", suffix=c("_fit", "_true")) |>
-    group_by(param_id, abse_precision_fit, attention_factor_fit) |> 
+    group_by(version, param_id) |> 
+    left_join(generating, by=c("version", "param_id"), suffix=c("_fit", "_true")) |>
+    group_by(version, param_id, base_precision_fit, attention_factor_fit) |> 
     slice_max(logp) |> 
-    group_by(param_id) |> 
+    group_by(version, param_id) |> 
     mutate(logp = logp - max(logp)) |> 
     ggplot(aes(attention_factor_fit, base_precision_fit, fill=logp)) +
     geom_tile() +
     geom_point(aes(x=attention_factor_true, y=base_precision_true), 
                shape='+', size=3, color='red') +
     scale_fill_viridis_c() +
-    facet_grid(fct_rev(factor(base_precision_true)) ~ attention_factor_true, scales="free") +
+    facet_grid(~version, scales="free") +
     labs(x="Fitted Attention Factor (θ)", 
          y="Fitted Baseline Precision (τ)",
          fill="Log Likelihood") +
@@ -139,7 +132,7 @@ total_likelihoods |>
           strip.text.x = element_blank(), 
           strip.text.y = element_blank())
 
-fig("tmp", w=3, h=3)
+fig("tmp", w=6, h=3)
 
 # %% --------
 
