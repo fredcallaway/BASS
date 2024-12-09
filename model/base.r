@@ -1,6 +1,6 @@
 library(tidyverse)
 library(lme4)
-# library(jtools)
+library(jtools)
 library(magrittr)
 library(purrr)
 # library(rmdformats)

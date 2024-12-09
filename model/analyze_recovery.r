@@ -6,8 +6,9 @@ source("base.r")
 # version <- "recovery-artificial/2024-11-23"
 # version <- "recovery-artificial-rapid/2024-11-25"
 versions <- c(
-    "recovery/2024-11-20", 
-    "recovery/2024-12-03"
+    # "recovery/2024-11-20", 
+    # "recovery/2024-12-03"
+    "recovery/2024-12-08B"
 )
 
 read_csvs <- function(name) {
@@ -35,6 +36,7 @@ mle <- total_likelihoods |>
     left_join(generating, by=c("version", "param_id"), suffix=c("_fit", "_true"))
 
 # %% --------
+mle
 
 mle |>
     select(-c(logp, sd)) |> 
