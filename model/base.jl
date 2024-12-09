@@ -38,7 +38,7 @@ function simulate_dataset(m, trials; ndt=0)
 end
 
 function make_sim(model, data; normalize_value=false, repeats=30)
-    trials = repeat(prepare_trials(Table(data); dt=.025, normalize_value), repeats);
+    trials = repeat(prepare_trials(Table(data); normalize_value), repeats);
     df = make_frame(simulate_dataset(model, trials))
     if normalize_value
         # unnomrmalize it

@@ -1,5 +1,7 @@
 using Distributions
 using Random
+const DEFAULT_DT = 0.1
+
 # ---------- Basics ---------- #
 
 "Bayesian Drift Diffusion Model"
@@ -48,7 +50,7 @@ end
 function SimTrial(;value=randn(2), 
                    confidence=rand(1.:5, 2),
                    presentation_distributions = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
-                   dt = 0.025)
+                   dt = DEFAULT_DTLT_DT)
     SimTrial(value, confidence, presentation_distributions, dt)
 end
 
