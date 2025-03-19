@@ -10,18 +10,18 @@ using DataFrames, CSV
 # %% --------
 
 # version = "2024-11-20"
-version = "2024-12-08B"
+version = "2024-12-16"
 data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
 group_fit = true
 
-fit_box = Box(
-    base_precision=(0.01, 0.1),
-    attention_factor=(0.0, 1.0),
-    cost=(0.01, 0.1),
-    prior_mean=µ,
-    prior_precision=1 / σ^2,
-    )
+# fit_box = Box(
+#     base_precision=(0.01, 0.1),
+#     attention_factor=(0.0, 1.0),
+#     cost=(0.01, 0.1),
+#     prior_mean=µ,
+#     prior_precision=1 / σ^2,
+#     )
     
 sim_box = Box(
     base_precision=0.05,
@@ -30,6 +30,8 @@ sim_box = Box(
     prior_mean=µ,
     prior_precision=1 / σ^2,
 )
+
+fit_box = sim_box
 
 # %% --------
 
@@ -60,11 +62,10 @@ elseif ARGS[1] == "process"
 
 else
     params = deserialize("tmp/bddm/grid/recovery/$version/params")
-    PARAM_ID = parse(Int, ARGS[1])
-    model = BDDM(; params[PARAM_ID]...)
-    sim_data = simulate_dataset(model, prepare_trials(data1));
-    grid_search(BDDM, "recovery/$version/$(PARAM_ID)", fit_box, 7, sim_data; repeats=100, ε=.05, tol=5, group_fit)
-    # grid_search(BDDM, "recovery/$version/$(PARAM_ID)", fit_box, 7, sim_data; repeats=1, ε=.05, tol=1000)
+    for param_id in eval(Meta.parse(ARGS[1]))
+        model = BDDM(; params[param_id]...)
+        sim_data = simulate_dataset(model, prepare_trials(data1));
+        grid_search(BDDM, "recovery/$version/$(param_id)", fit_box, 7, sim_data; repeats=100, ε=.05, tol=5, group_fit)
+    end
+    # grid_search(BDDM, "recovery/$version/$(param_id)", fit_box, 7, sim_data; repeats=1, ε=.05, tol=1000)
 end
-
-
