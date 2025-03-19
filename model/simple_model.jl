@@ -1,4 +1,3 @@
-include("base.jl")
 include("bayes.jl")
 
 @with_kw struct BDM2{A,B,C,D,E,F,G}
@@ -11,11 +10,15 @@ include("bayes.jl")
     prior_precision::G = 1.
 end
 
-function total_attention(m, d::NamedTuple)
-    pds = d.presentation_duration
-    total1 = sum(pds[1:2:end])
-    total2 = sum(pds[2:2:end])
-    total1_noninit = total1 - pds[1]
+function total_attention(m, d::NamedTuple; use_presentations=true)
+    if use_presentations
+        pds = d.presentation_duration
+        total1 = sum(pds[1:2:end])
+        total2 = sum(pds[2:2:end])
+        total1_noninit = total1 - pds[1]
+    else
+        @assert false
+    end
     (
         total1 + m.attention_factor * total2,
         total2 + m.attention_factor * total1_noninit
