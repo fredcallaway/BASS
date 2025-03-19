@@ -23,15 +23,19 @@ function initialize!(pol::DirectedCognition, t)
     pol.λ_avg .= average_precision(pol.m, t)
 end
 
-stop(pol::DirectedCognition, s::State, t::Trial) = !voc_is_positive(pol, s, t, rand(pol.noise))
+function stop(pol::DirectedCognition, s::State, t::Trial)
+    s.steps_left == 0 && return true
+    !voc_is_positive(pol, s, t, rand(pol.noise))
+end
 # stop(pol::DirectedCognition, s::State, t::Trial) = voc_dc(pol.m, s, t) < 0
 
 "Directed Cognition approximation to the value of computation."
 function voc_dc(m, s, t)
     # note that we treat the number of samples as a continuous variable here
     # and we assume you can't take more than 100
+    max_samples = min(100, s.steps_left)
     λ_avg = average_precision(m, t)
-    res = optimize(1, 100, GoldenSection(), abs_tol=1) do n  # note abs_tol is on the number of samples
+    res = optimize(1, max_samples, GoldenSection(), abs_tol=1) do n  # note abs_tol is on the number of samples
         -voc_n(m, s, n, λ_avg, t.dt)
     end
     -res.minimum
@@ -44,7 +48,8 @@ function voc_is_positive(pol::Policy, s, t, offset)
     # NOTE: the target keyword relies on my fork of Optim.jl
     # https://github.com/fredcallaway/Optim.jl/
     # It's included in Project.toml so it should "just work" if you follow the README
-    res = optimize(1., 100., abs_tol=1., target=offset) do n
+    max_samples = min(100, s.steps_left)
+    res = optimize(1., max_samples, abs_tol=1., target=offset) do n
         -voc_n(m, s, n, λ_avg, t.dt)
     end
     # Slower short circuit, works with stable Optim.jl

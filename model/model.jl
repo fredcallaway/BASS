@@ -20,12 +20,13 @@ const DEFAULT_DT = 0.1
 end
 
 "The state of the BDDM."
-struct State
+mutable struct State
     µ::Vector{Float64}
     λ::Vector{Float64}
+    steps_left::Int  # -1 means no time limit
 end
-State(m::BDDM) = State(fill(m.prior_mean, m.N), fill(m.prior_precision, m.N))
-Base.copy(s::State) = State(copy(s.µ), copy(s.λ))
+State(m::BDDM) = State(fill(m.prior_mean, m.N), fill(m.prior_precision, m.N), -1)
+Base.copy(s::State) = State(copy(s.µ), copy(s.λ), s.steps_left)
 
 "A single choice trial"
 abstract type Trial end
@@ -73,6 +74,7 @@ State by Bayesian inference. The precision used to generate the samples (λ_obje
 may differ from the precision assumed when performing the posterior update (λ_subjective).
 "
 function update!(m::BDDM, s::State, true_value::Vector, λ_objective::Vector, λ_subjective::Vector)
+    s.steps_left -= 1
     for i in eachindex(λ_objective)
         λ_objective[i] == 0 && continue  # no update
         σ_obs = λ_objective[i] ^ -0.5
@@ -161,6 +163,7 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     #     #error("Trying to simulate a HumanTrial")
     #     max_step = min(max_step, t.rt)
     # end
+    s.steps_left = max_step
     initialize!(pol, t)
     switch = make_switches(t)
     attended_item, time_to_switch = switch()
