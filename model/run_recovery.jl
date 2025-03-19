@@ -10,7 +10,7 @@ using DataFrames, CSV
 # %% --------
 
 # version = "2024-11-20"
-version = "2024-12-16"
+version = "2024-03-19"
 data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
 group_fit = true

@@ -49,7 +49,7 @@ function compute_likelihoods(out, model, box, grid_size, subj_data; ε, tol, rep
 end
 
 function grid_search(model, version, box, grid_size, data; group_fit=true,
-        ε=0.01, tol=4, repeats=10, min_multiplier=1.2, parallelize=:params
+        ε=0.01, tol=4, repeats=10, min_multiplier=5.0, parallelize=:params
     )
     path = "tmp/$(lowercase(string(model)))/grid/$version"
     println("Writing results to $path")

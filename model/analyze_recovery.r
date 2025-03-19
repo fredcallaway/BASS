@@ -6,10 +6,16 @@ source("base.r")
 # version <- "recovery-artificial/2024-11-23"
 # version <- "recovery-artificial-rapid/2024-11-25"
 versions <- c(
-    # "recovery/2024-11-20", 
+    "recovery/2024-11-20"
     # "recovery/2024-12-03"
-    "recovery/2024-12-08B"
+    # "recovery/2024-12-08B"
+    # "recovery/2024-12-16"
+    # "recovery-artificial-rapid/2024-11-25"
+    # "recovery-artificial-rapid/2024-03-19"  # 2025 whoops
 )
+
+FIGS_PATH <- glue("figs/{versions}/")
+
 
 read_csvs <- function(name) {
     map(versions, ~ 
@@ -22,6 +28,8 @@ read_csvs <- function(name) {
 generating <- read_csvs("generating_params") |> select(!starts_with("prior"))
 likelihoods <- read_csvs("likelihoods")
 
+
+
 total_likelihoods <- likelihoods |> 
     group_by(version, param_id, cost, base_precision, attention_factor) |> 
     filter(n() == max(n())) |> 
@@ -33,19 +41,19 @@ total_likelihoods <- likelihoods |>
 mle <- total_likelihoods |> 
     group_by(version, param_id) |> 
     slice_max(logp) |> 
-    left_join(generating, by=c("version", "param_id"), suffix=c("_fit", "_true"))
+    left_join(generating, by=c("version", "param_id"), suffix=c("_fit", "_true")) %>% 
+    ungroup()
 
-# %% --------
-mle
+
 
 mle |>
-    select(-c(logp, sd)) |> 
+    select(-c(logp, sd, version)) |> 
     pivot_longer(
         cols = -param_id,
         names_pattern = "(.+)_(true|fit)",
         names_to = c("param", "type"),
         values_to = "value"
-    ) |> 
+    ) %>% 
     pivot_wider(
         names_from = type,
         values_from = value
@@ -168,7 +176,7 @@ total_likelihoods |>
     slice_max(logp) |> 
     left_join(generating, by=c("param_id"), suffix=c("_fit", "_true")) |> 
     ggplot(aes(attention_factor_fit, logp, color=factor(attention_factor_true))) +
-    geom_point() +
+    geom_line() +
     geom_abline(slope=1, intercept=0) +
     scale_color_brewer(palette="Set1") +
     facet_grid(cost_true ~ base_precision_true)

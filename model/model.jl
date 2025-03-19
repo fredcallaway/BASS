@@ -1,6 +1,6 @@
 using Distributions
 using Random
-const DEFAULT_DT = 0.1
+const DEFAULT_DT = 0.025
 
 # ---------- Basics ---------- #
 
@@ -51,11 +51,11 @@ end
 function SimTrial(;value=randn(2), 
                    confidence=rand(1.:5, 2),
                    presentation_distributions = shuffle!([Normal(0.2, 0.05), Normal(0.5, 0.1)]),
-                   dt = DEFAULT_DTLT_DT)
+                   dt = DEFAULT_DT)
     SimTrial(value, confidence, presentation_distributions, dt)
 end
 
-SimTrial(t::HumanTrial) = SimTrial(t.value, t.confidence, t.presentation_distributions, t.dt)
+SimTrial(t::HumanTrial; dt=t.dt) = SimTrial(t.value, t.confidence, t.presentation_distributions, dt)
 
 # ---------- Updating ---------- #
 

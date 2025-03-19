@@ -21,14 +21,14 @@ function make_frame(data)
        conf1, conf2 = d.confidence
        pt1 = round(sum(d.presentation_duration[1:2:end]); digits=3)
        pt2 = round(sum(d.presentation_duration[2:2:end]); digits=3)
-       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice, d.rt,
+       (;d.subject, val1, val2, conf1, conf2, pt1, pt2, d.choice, d.rt, d.order,
         initpresdur1=d.presentation_duration[1], initpresdur2=get(d.presentation_duration, 2, missing))
    end |> Table
 end
 
 function simulate_dataset(m, trials; ndt=0)
     map(trials) do t
-        sim = simulate(m, SimTrial(t); save_presentation=true)
+        sim = simulate(m, SimTrial(t; dt=.025); save_presentation=true)
         presentation_duration = t.dt .* sim.presentation_durations
         m1, m2 = mean.(t.presentation_distributions)
         order = m1 > m2 ? :longfirst : :shortfirst

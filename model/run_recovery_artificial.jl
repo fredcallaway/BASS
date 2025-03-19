@@ -12,7 +12,8 @@ ProgressMeter.ncalls(::typeof(flatmap), ::Any, xs::Any) = length(xs)
 
 # %% --------
 
-version = "recovery-artificial-rapid/2024-11-25"
+# version = "recovery-artificial-rapid/2024-11-25"
+version = "recovery-artificial-rapid/2024-03-19"
 tmp_path = "tmp/bddm/grid/$version"
 results_path = "results/$version"
 mkpath(tmp_path)
@@ -22,12 +23,19 @@ data1 = load_human_data(1)
 µ, σ = empirical_prior(data1)
 
 sim_box = fit_box = Box(
-    base_precision=(0.01, 0.1),
-    attention_factor=(0., 1.5),
-    cost=(0.01, 0.1),
+    base_precision = .05,
+    attention_factor=(0., 1.),
+    cost=0.06,
     prior_mean=µ,
     prior_precision=1 / σ^2,
 )
+# sim_box = fit_box = Box(
+#     base_precision=(0.01, 0.1),
+#     attention_factor=(0., 1.5),
+#     cost=(0.01, 0.1),
+#     prior_mean=µ,
+#     prior_precision=1 / σ^2,
+# )
 
 SimTrial(t::SimTrial) = t
 
@@ -35,7 +43,7 @@ ALT_DURATIONS = Dict(
     :shortfirst => [Normal(.025, 0), Normal(.05, 0)],
     :longfirst => [Normal(.05, 0), Normal(.025, 0)]
 )
-function simulate_data(model; n_subjects=100, n_values=20)
+function simulate_data(model; n_subjects=96, n_values=20)
     qs = range(0, 1, length=n_values+2)[2:end-1]
     vs = quantile.(Ref(Normal(µ, σ)), qs)
 
@@ -55,7 +63,7 @@ function simulate_data(model; n_subjects=100, n_values=20)
             subject,
             choice=0,
             rt=0.0,
-            dt=0.025
+            dt=.025
         )
     end[:]
     data = simulate_dataset(model, trials)
@@ -68,6 +76,9 @@ function simulate_data(model; n_subjects=100, n_values=20)
         t.rt < MAX_RT
     end
 end
+
+
+
 
 if isempty(ARGS) || ARGS[1] == "setup"
     params = reduce(vcat, grid(7, sim_box))
@@ -84,14 +95,15 @@ elseif ARGS[1] == "process"
     if length(param_ids) < length(params)
         println("Some params unavailable: $(setdiff(eachindex(params), param_ids))")
     end
-    @showprogress flatmap(param_ids) do param_id
+    res = @showprogress flatmap(param_ids) do param_id
         flatmap(readdir("$tmp_path/$param_id")) do subject
             x = deserialize("$tmp_path/$param_id/$subject")
             map(x.candidates[:], x.results[:]) do c, r
                 (; param_id, subject, c.base_precision, c.attention_factor, c.cost, r.logp, r.std, r.converged)
             end
         end
-    end |> CSV.write("$results_path/likelihoods.csv", writeheader=true)
+    end
+    CSV.write("$results_path/likelihoods.csv", res, writeheader=true)
 
     map(eachindex(params)) do param_id
         (;param_id, params[param_id]...)
@@ -103,6 +115,6 @@ else
     sim_data = simulate_data(model)
     @show length(sim_data)
     grid_search(BDDM, "$version/$(PARAM_ID)", fit_box, 7, sim_data;
-        repeats=10, ε=.05, tol=4, parallelize=:params
+        repeats=10, ε=.05, tol=4, parallelize=:subjects
     )
 end
