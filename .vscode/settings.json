@@ -1,0 +1,8 @@
+{
+    "files.exclude": {
+        "model/tmp": true,
+        "model/results": true,
+        "model/.fighist": true
+    },
+    "julia.environmentPath": "${workspaceFolder}/model",
+}

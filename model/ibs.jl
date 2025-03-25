@@ -21,7 +21,7 @@ function sample_hit!(est::IBSEstimate)
     end
 end
 
-function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
+function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf, max_calls=100_000_000)
     logps = fill(NaN, repeats)
     vars = fill(NaN, repeats)
     n_call = 0
@@ -43,6 +43,8 @@ function ibs(hit_samplers::Vector{<:Function}; repeats=1, min_logp=-Inf)
             end
             if converged_logp + unconverged_logp < min_logp
                 return (logp=min_logp, std=missing, converged=false, logps, vars, n_call)
+            elseif n_call > max_calls
+                error("Max calls reached")
             end
         end
         logps[i] = converged_logp

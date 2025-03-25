@@ -13,7 +13,7 @@ ProgressMeter.ncalls(::typeof(flatmap), ::Any, xs::Any) = length(xs)
 # %% --------
 
 # version = "recovery-artificial-rapid/2024-11-25"
-version = "recovery-artificial-rapid/2024-03-19"
+version = "recovery-artificial-rapid/320subj-normalpres"
 tmp_path = "tmp/bddm/grid/$version"
 results_path = "results/$version"
 mkpath(tmp_path)
@@ -39,11 +39,7 @@ sim_box = fit_box = Box(
 
 SimTrial(t::SimTrial) = t
 
-ALT_DURATIONS = Dict(
-    :shortfirst => [Normal(.025, 0), Normal(.05, 0)],
-    :longfirst => [Normal(.05, 0), Normal(.025, 0)]
-)
-function simulate_data(model; n_subjects=96, n_values=20)
+function simulate_data(model; n_subjects=320, n_values=20)
     qs = range(0, 1, length=n_values+2)[2:end-1]
     vs = quantile.(Ref(Normal(µ, σ)), qs)
 
@@ -58,12 +54,12 @@ function simulate_data(model; n_subjects=96, n_values=20)
         HumanTrial(;
             value=[v1, v2],
             confidence=[4, 4],
-            presentation_distributions=ALT_DURATIONS[order],
+            presentation_distributions=PRESENTATION_DURATIONS[order],
             real_presentation_times=Int[],
             subject,
             choice=0,
             rt=0.0,
-            dt=.025
+            dt=DEFAULT_DT
         )
     end[:]
     data = simulate_dataset(model, trials)
@@ -115,6 +111,6 @@ else
     sim_data = simulate_data(model)
     @show length(sim_data)
     grid_search(BDDM, "$version/$(PARAM_ID)", fit_box, 7, sim_data;
-        repeats=10, ε=.05, tol=4, parallelize=:subjects
+        repeats=10, ε=.05, tol=0, parallelize=:subjects, group_fit=false
     )
 end

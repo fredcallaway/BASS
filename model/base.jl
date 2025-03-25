@@ -28,7 +28,7 @@ end
 
 function simulate_dataset(m, trials; ndt=0)
     map(trials) do t
-        sim = simulate(m, SimTrial(t; dt=.025); save_presentation=true)
+        sim = simulate(m, SimTrial(t); save_presentation=true)
         presentation_duration = t.dt .* sim.presentation_durations
         m1, m2 = mean.(t.presentation_distributions)
         order = m1 > m2 ? :longfirst : :shortfirst
@@ -37,8 +37,8 @@ function simulate_dataset(m, trials; ndt=0)
     end
 end
 
-function make_sim(model, data; normalize_value=false, repeats=30)
-    trials = repeat(prepare_trials(Table(data); normalize_value), repeats);
+function make_sim(model, data; normalize_value=false, repeats=30, dt=.01)
+    trials = repeat(prepare_trials(Table(data); normalize_value, dt), repeats);
     df = make_frame(simulate_dataset(model, trials))
     if normalize_value
         # unnomrmalize it
@@ -47,6 +47,16 @@ function make_sim(model, data; normalize_value=false, repeats=30)
         @. df.val2 = round(df.val2 * val_σ + val_µ; digits=2)
     end
     df
+end
+
+function make_sim(models::Vector{BDDM}, data; kws...)
+    mapreduce(vcat, models) do model
+        df = make_sim(model, data; kws...)
+        Table(df; 
+            subjective_offset = fill(model.subjective_offset, length(df)),
+            subjective_slope = fill(model.subjective_slope, length(df))
+        )
+    end
 end
 
 function write_sim(model, data, version, name; normalize_value=false, repeats=30)

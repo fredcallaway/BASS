@@ -1,6 +1,6 @@
 using Distributions
 using Random
-const DEFAULT_DT = 0.025
+const DEFAULT_DT = 0.1
 
 # ---------- Basics ---------- #
 

@@ -1,29 +1,41 @@
+# %% --------
+
 source("base.r")
 library(tidyverse)
 
 # %% --------
 
-full_results <- list.files("results/grid", pattern="*.csv", full.names=TRUE, recursive=TRUE) |>
-    map_dfr(~ read_csv(.x) |> mutate(version = basename(.x)))
+full_results <- read_csv("results/grid/2025-03-20.csv")
+
+# %% --------
+
+
+full_results %>%
+    group_by(subject) %>%
+    slice_max(logp) %>% 
+    ggplot(aes(base_precision, cost)) +
+    geom_jitter(alpha=0.4, width=0.0005, height=0.0005)
+
+fig()
 
 # %% --------
 
 df <- full_results |>
-    group_by(version, cost, base_precision, attention_factor) |>
+    group_by(cost, base_precision) |>
     summarize(
         logp = sum(logp),
         sd = sqrt(sum(std ^ 2))
     ) |> 
     drop_na(sd)
 
+df %>% ungroup() %>% slice_max(logp)
 # %% --------
 
 df |> 
-    ggplot(aes(x=base_precision, y=attention_factor, fill=logp)) +
-    facet_grid(version~cost, labeller="label_both") +
+    ggplot(aes(x=base_precision, y=cost, fill=logp)) +
     geom_raster()
 
-fig(w=10, h=3)
+fig()
 # %% --------
 
 df |> 

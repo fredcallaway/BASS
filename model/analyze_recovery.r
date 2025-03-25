@@ -6,12 +6,12 @@ source("base.r")
 # version <- "recovery-artificial/2024-11-23"
 # version <- "recovery-artificial-rapid/2024-11-25"
 versions <- c(
-    "recovery/2024-11-20"
+    # "recovery/2024-11-20"
     # "recovery/2024-12-03"
     # "recovery/2024-12-08B"
     # "recovery/2024-12-16"
     # "recovery-artificial-rapid/2024-11-25"
-    # "recovery-artificial-rapid/2024-03-19"  # 2025 whoops
+    "recovery-artificial-rapid/2024-03-19"  # 2025 whoops
 )
 
 FIGS_PATH <- glue("figs/{versions}/")
@@ -27,7 +27,6 @@ read_csvs <- function(name) {
 
 generating <- read_csvs("generating_params") |> select(!starts_with("prior"))
 likelihoods <- read_csvs("likelihoods")
-
 
 
 total_likelihoods <- likelihoods |> 
