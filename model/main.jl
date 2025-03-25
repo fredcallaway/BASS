@@ -1,29 +1,48 @@
 include("base.jl")
 
-version = "mar25-fit"
+version = "mar25"
 mkpath("results/$version")
 
 
-# %% ==================== Study 1 main ====================
+# %% ==================== Load data ====================
 
 data1 = load_human_data(1)
-µ, σ = empirical_prior(data1)
-m1_main = BDDM(
-    base_precision = 0.05,
+data2 = load_human_data(2)
+avg_conf = mean(flatten(data2.confidence))
+
+# use average confidence from study 2 for study 1 (no confidence judgments)
+for d in data1
+    d.confidence .= avg_conf
+end
+
+make_frame(data1) |> CSV.write("data/study1.csv")
+make_frame(data2) |> CSV.write("data/study2.csv")
+
+# %% ==================== Define model parameters ====================
+
+model_base = BDDM(
+    base_precision = 0.0,
+    confidence_slope = 0.01,
     attention_factor = 0.0,
     cost = 0.05,
+    # NOTE: prior_mean and prior_precision are "fit" to each study
+)
+
+# %% ==================== Study 1 main ====================
+
+µ, σ = empirical_prior(data1)
+m1_main = mutate(model_base,
     prior_mean = µ,
     prior_precision = 1 / σ^2,
 )
-
-df = write_sim(m1_main, data1, version, "1-main")
+write_sim(m1_main, data1, version, "1-main")
 
 # %% ==================== Study 1 flat prior ====================
 
 m1_flat = mutate(m1_main,
     prior_precision = 1e-6
 )
-df = write_sim(m1_flat, data1, version, "1-flatprior")
+write_sim(m1_flat, data1, version, "1-flatprior")
 
 # %% ==================== Study 1 zero prior ====================
 
@@ -34,27 +53,21 @@ write_sim(m1_zero, data1, version, "1-zeroprior")
 
 # %% ==================== Study 2 main ====================
 
-data2 = load_human_data(2)
-
 µ, σ = empirical_prior(data2)
-m2_main = BDDM(
-    base_precision = 0.01,
-    confidence_slope = 0.01,
-    attention_factor = 0.0,
-    cost = .05,
+m2_main = mutate(model_base,
     prior_mean = µ,
     prior_precision = 1 / σ^2
 )
-df = write_sim(m2_main, data2, version, "2-main")
+write_sim(m2_main, data2, version, "2-main")
 
 # %% ==================== Study 2 no metacognition ====================
 
 avg_confidence = m2_main.confidence_slope * mean(flatten(data2.confidence))
 m2_nometa = mutate(m2_main,
     subjective_slope = 0,
-    subjective_offset = avg_confidence
+    subjective_offset = m2_main.confidence_slope * avg_conf
 )
-df = write_sim(m2_nometa, data2, version, "2-nometa")
+write_sim(m2_nometa, data2, version, "2-nometa")
 
 # %% ==================== Study 2 overconfidence ====================
 
@@ -62,7 +75,7 @@ over_models = map(0:.005:.04) do subjective_offset
     mutate(m2_main; subjective_offset)
 end
 
-df = write_sim(over_models, data2, version, "2-overconf"; repeats=5)
+write_sim(over_models, data2, version, "2-overconf"; repeats=5)
 
 
 #= ... unused, left in for posterity ...

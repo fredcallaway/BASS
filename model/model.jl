@@ -148,21 +148,18 @@ initialize!(pol::CantStopWontStop, t::Trial) = nothing
 
 "Precision of one sample, including confidence but not attention"
 function objective_precision(m, t)
-    @. t.dt * (m.base_precision + m.confidence_slope * (t.confidence - 1.))
+    @. t.dt * (m.base_precision + m.confidence_slope * t.confidence)
 end
 
 "*Perceived* precision of one sample"
 function subjective_precision(m, t)
-    @. t.dt * (m.base_precision + m.subjective_offset + m.subjective_slope * m.confidence_slope * (t.confidence - 1.))
+    @. t.dt * (m.base_precision + m.subjective_offset + m.subjective_slope * m.confidence_slope * t.confidence)
 end
 
 "Simulates a choice trial with a given BDDM and stopping Policy."
 function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m), max_step=max_rt(t),
                   save_states=false, save_presentation=false)
-    # if t isa HumanTrial
-    #     #error("Trying to simulate a HumanTrial")
-    #     max_step = min(max_step, t.rt)
-    # end
+
     s.steps_left = max_step
     initialize!(pol, t)
     switch = make_switches(t)
@@ -203,27 +200,3 @@ function simulate(m::BDDM, t::Trial; pol::Policy=DirectedCognition(m), s=State(m
     push!(states, s)
     (;choice, time_step, reward, states, presentation_durations, timeout)
 end
-
-# simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
-# simulate(m::BDDM, pol::Policy, t::HumanTrial; kws...) = simulate(m, pol; t, max_step=t.rt, kws...)
-# simulate(m::BDDM, t::HumanTrial; kws...) = simulate(m, t; max_step=t.rt, kws...)
-
-# ---------- Miscellaneous ---------- #
-
-# namedtuple(t::Trial) = (
-#     val1 = t.value[1],
-#     val2 = t.value[2],
-#     conf1 = t.confidence[1],
-#     conf2 = t.confidence[2],
-# )
-
-# namedtuple(m::BDDM) = (
-#     base_precision = m.base_precision,
-#     attention_factor = m.attention_factor,
-#     cost = m.cost,
-#     risk_aversion = m.risk_aversion,
-#     over_confidence_slope = m.over_confidence_slope,
-#     over_confidence_intercept = m.over_confidence_intercept,
-#     prior_mean = m.prior_mean,
-#     prior_precision = m.prior_precision
-# )
