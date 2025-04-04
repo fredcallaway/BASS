@@ -3,37 +3,86 @@
 source("base.r")
 library(tidyverse)
 
+# %% ===== load results ========================================================
+
+
+full_results <- read_csv("results/grid/2025-04-03-1.csv")
+
+chance <- full_results %>% 
+    filter(!converged) %>% 
+    distinct(subject, logp) %>% 
+    rename(baseline = logp)
+
+df <- full_results %>%
+    left_join(chance) %>% 
+    mutate(relative_logp = logp - baseline)
+
 # %% --------
 
-full_results <- read_csv("results/grid/2025-03-20.csv")
+group <- df |>
+    group_by(cost, base_precision, confidence_slope) |>
+    summarize(
+        logp = sum(logp),
+        relative_logp = sum(relative_logp),
+        sd = sqrt(sum(std ^ 2))
+    ) |> 
+    drop_na(sd)
+
+group |> 
+    group_by(base_precision, cost) |>
+    slice_max(relative_logp) %>% 
+    ungroup() %>% 
+    drop_extreme(relative_logp, q_lo=0.9, q_hi=1) %>% 
+    ggplot(aes(x=base_precision, y=cost, fill=relative_logp)) +
+    geom_raster() +
+    expand_limits(x=c(0, 0.1), y=c(0, 0.1)) +
+    # scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0)
+
+fig()
+
+group %>% ungroup() %>% slice_max(logp)
 
 # %% --------
 
-
-full_results %>%
+df %>%
     group_by(subject) %>%
     slice_max(logp) %>% 
-    ggplot(aes(base_precision, cost)) +
-    geom_jitter(alpha=0.4, width=0.0005, height=0.0005)
+    count(base_precision, cost) %>% 
+    ggplot(aes(base_precision, cost, fill=n)) +
+    geom_tile()
+    # geom_jitter(alpha=0.4, width=0.0001, height=0.0001)
 
 fig()
 
 # %% --------
 
-df <- full_results |>
-    group_by(cost, base_precision) |>
+df %>%
+    ggplot(aes(x=base_precision, y=cost, fill=relative_logp)) +
+    geom_raster() + 
+    facet_wrap(~subject) +
+    scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0)
+fig(w=10, h=10)
+
+# %% --------
+
+group <- df |>
+    group_by(cost, base_precision, confidence_slope) |>
     summarize(
         logp = sum(logp),
+        relative_logp = sum(relative_logp),
         sd = sqrt(sum(std ^ 2))
     ) |> 
     drop_na(sd)
 
-df %>% ungroup() %>% slice_max(logp)
+group %>% ungroup() %>% slice_max(logp)
 # %% --------
 
-df |> 
-    ggplot(aes(x=base_precision, y=cost, fill=logp)) +
-    geom_raster()
+group |> 
+    group_by(base_precision, cost) |>
+    slice_max(relative_logp) %>% 
+    ggplot(aes(x=base_precision, y=cost, fill=relative_logp)) +
+    geom_raster() +
+    scale_fill_gradient2(low="blue", high="red", mid="white", midpoint=0)
 
 fig()
 # %% --------

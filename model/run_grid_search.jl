@@ -10,7 +10,7 @@ using SplitApplyCombine
 
 experiment = ARGS[1]
 job = ARGS[2]
-version = "2025-03-25-$experiment"
+version = "2025-04-03-$experiment"
 
 if job == "process"
     # version = "2024-11-04"
@@ -19,7 +19,16 @@ if job == "process"
     df = flatmap(readdir("tmp/bddm/grid/$version")) do subject
         x = deserialize("tmp/bddm/grid/$version/$subject")
         map(x.candidates[:], x.results[:]) do c, r
-            (; subject, c.base_precision, c.attention_factor, c.confidence_slope, c.cost, r.logp, r.std, r.converged)
+            if r isa Float64
+                logp = r
+                std = 0.0
+                converged = false
+            else
+                logp = r.logp
+                std = r.std
+                converged = r.converged
+            end
+            (; subject, c.base_precision, c.attention_factor, c.confidence_slope, c.cost, logp, std, converged)
         end
     end |> DataFrame
     df |> CSV.write("results/grid/$version.csv", writeheader=true)
@@ -39,29 +48,27 @@ else
         data = load_human_data(1)
         µ, σ = empirical_prior(data)
         box = Box(
-            base_precision = (.01, .1),
-            attention_factor = 0.,
-            cost = (.01, .1),
+            base_precision = (0.0, 0.1),
+            attention_factor = 0.8,
+            cost = (0.0, .1),
             prior_mean = µ,
             prior_precision = 1 / σ^2,
         )
-        n_grid = 10
     elseif experiment == "2"
         data = load_human_data(2)
         µ, σ = empirical_prior(data)
         box = Box(
-            base_precision = (0.0, .02),
-            confidence_slope = (0.0, .002),
-            attention_factor = 0.,
+            base_precision = (0.0, .05),
+            confidence_slope = (0.0, .02),
+            attention_factor = 0.8,
             cost = .06,
             prior_mean = µ,
             prior_precision = 1 / σ^2,
         )
-        n_grid = 11
     else
         error("Invalid experiment: $experiment")
     end
 
-
-    grid_search(BDDM, version, box, n_grid, data, repeats=30, ε=.05; tol=0, fit_mode)
+    n_grid = 11
+    grid_search(BDDM, version, box, n_grid, data, repeats=100, ε=.05; tol=0, fit_mode)
 end

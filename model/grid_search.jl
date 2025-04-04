@@ -42,11 +42,13 @@ function compute_likelihoods(out, model, box, grid_size, subj_data; ε, tol, rep
 
     ibs_kws = (; ε, tol, repeats, min_multiplier)
     cache = "tmp/ibs/$out"
+    chance = chance_loglike(trials; ibs_kws.tol)
     results = flexmap(candidates; parallel, cache) do m
+        m.confidence_slope == 0.0 && m.base_precision == 0.0 && return chance
+        m.cost == 0.0 && return chance
         GC.gc()
         ibs_loglike(m, trials; ibs_kws...)
     end
-    chance = chance_loglike(trials; ibs_kws.tol)
     output = (; box, candidates, trials, results, chance, ibs_kws)
     serialize(out, output)
     println("Wrote $out")
