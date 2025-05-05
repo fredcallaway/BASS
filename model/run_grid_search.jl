@@ -10,7 +10,7 @@ using SplitApplyCombine
 
 experiment = ARGS[1]
 job = ARGS[2]
-version = "2025-04-03-$experiment"
+version = "2025-04-07-thetalarge-$experiment"
 
 if job == "process"
     # version = "2024-11-04"
@@ -49,8 +49,8 @@ else
         µ, σ = empirical_prior(data)
         box = Box(
             base_precision = (0.0, 0.1),
-            attention_factor = 0.8,
-            cost = (0.0, .1),
+            attention_factor = (1, 2),
+            cost = (0.0, 0.1),
             prior_mean = µ,
             prior_precision = 1 / σ^2,
         )
@@ -60,7 +60,7 @@ else
         box = Box(
             base_precision = (0.0, .05),
             confidence_slope = (0.0, .02),
-            attention_factor = 0.8,
+            attention_factor = (0.0, 1.0),
             cost = .06,
             prior_mean = µ,
             prior_precision = 1 / σ^2,

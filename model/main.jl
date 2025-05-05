@@ -62,7 +62,6 @@ write_sim(m2_main, data2, version, "2-main")
 
 # %% ==================== Study 2 no metacognition ====================
 
-avg_confidence = m2_main.confidence_slope * mean(flatten(data2.confidence))
 m2_nometa = mutate(m2_main,
     subjective_slope = 0,
     subjective_offset = m2_main.confidence_slope * avg_conf

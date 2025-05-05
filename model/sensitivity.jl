@@ -12,7 +12,7 @@ end
 version = "2025-04-11"
 
 mkpath("tmp/sensitivity/$version")
-mkpath("results/sensitivity-json/$version")
+mkpath("results/sensitivity/json/$version")
 
 using ProgressMeter
 using Sobol
@@ -25,7 +25,7 @@ end
 function run_sensitivity(name, data, box)
     study = parse(Int, name[1])
     results = @showprogress name pmap(grid(11, box)) do prm
-        if isnan(get(prm, :subjective_offset, 0.)) # NaN is a flag for 2-nometa
+        if get(prm, :subjective_slope, -1.) == 0.
             subjective_offset = prm.confidence_slope * mean(flatten(data.confidence))
             prm = (;prm..., subjective_offset)
         end
@@ -35,7 +35,7 @@ function run_sensitivity(name, data, box)
         (;prm, fit_regressions(df; study)...)
     end
     serialize("tmp/sensitivity/$version/$name", results)
-    write("results/sensitivity-json/$version/$name.json", json(results))
+    write("results/sensitivity/json/$version/$name.json", json(results))
 end
 
 
@@ -81,7 +81,7 @@ end
 function run_selected_sensitivity(job_ids)
     jobs = Dict(
         1 => () -> run_sensitivity("2-main", data2, box2),
-        2 => () -> run_sensitivity("2-nometa", data2, update(box2, subjective_slope = NaN)),
+        2 => () -> run_sensitivity("2-nometa", data2, update(box2, subjective_slope = 0.)),
         # 3 => () -> run_sensitivity("2-biased_mean", data2, update(box2, prior_mean = (0.1µ, 0.9µ))),
         4 => () -> run_sensitivity("2-zero_mean", data2, update(box2, prior_mean = 0.)),
         5 => () -> run_sensitivity("1-main", data1, box1),

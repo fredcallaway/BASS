@@ -1,6 +1,7 @@
 include("base.jl")
 include("regressions.jl")
 
+
 # %% --------
 
 R"""
@@ -12,8 +13,13 @@ FIGS_PATH = "figs/sensitivity/"
 
 # %% --------
 
+version = "2025-04-11"
+outdir = "results/sensitivity/processed/$version"
+indir = "tmp/sensitivity/$version"
+mkpath(outdir)
+
 function load_frame(model, analysis=:choice)
-    results = deserialize("results/sensitivity/$model")
+    results = deserialize("$indir/$model")
 
     df = flatmap(results) do x
         map(getfield(x, analysis)) do reg
@@ -27,11 +33,10 @@ end
 
 # %% ==================== study 1 ====================
 
-model1 = mapreduce(load_frame, vcat, ["1-main", "1-biased_mean", "1-zero_mean", "1-flat_prior"])
-
+model1 = mapreduce(load_frame, vcat, ["1-main", "1-zero_mean", "1-flat_prior"])
 data1 = load_human_data(1)
-
-human1 = DataFrame(fit_regressions(DataFrame(make_frame(data1)); study=1).choice)
+reg1 = fit_regressions(DataFrame(make_frame(data1)); study=1)
+human1 = DataFrame(reg1.choice)
 
 @rput model1 human1
 
@@ -57,12 +62,14 @@ human_wide1 = human1 %>%
 model1 %>%
     filter(model != "biased_mean") %>%
     group_by(model) %>%
-    select(model, base_precision, term, estimate) %>%
+    select(model, confidence_slope, cost, accuracy, term, estimate) %>%
+    filter(accuracy > .55) %>%
     pivot_wider(names_from=term, values_from=estimate) %>%
     select(model, `spdfirst:savV`, spdfirst) %>%
     ggplot(aes(spdfirst, `spdfirst:savV`)) +
     geom_point(mapping=aes(color=model), size=.3) +
     bullseye(human_wide1) +
+    bullseye(human2) +
     # labs(x="rpd > choice", y="rpd x ov > choice") +
     theme_classic() +
     model_pal + no_legend
@@ -78,9 +85,10 @@ human_choice = DataFrame(reg2.choice)
 human_rt = DataFrame(reg2.rt)
 
 model_choice, model_rt = map([:choice, :rt]) do analysis
-    mapreduce(vcat, ["2-main", "2-biased_mean", "2-zero_mean", "2-nometa"]) do name
+    println(analysis)
+    mapreduce(vcat, ["2-main", "2-zero_mean", "2-nometa"]) do name
         df = load_frame(name, analysis)
-        if "subjective_slope" ∉ names(df)
+        if "subjective_offset" ∉ names(df)
             df.subjective_slope .= NaN
             df.subjective_offset .= NaN
         end
@@ -88,39 +96,40 @@ model_choice, model_rt = map([:choice, :rt]) do analysis
     end
 end
 
-model_choice.accuracy
-
 @rput model_choice model_rt human_choice human_rt
-
 human_accuracy = reg2.accuracy
-human_rt50 = reg2.rt_quantiles[3]
 @rput human_accuracy human_rt50
 
+human_rt
 R"""
 human2 = bind_rows(
     mutate(human_choice, term = glue("choice-{term}")),
     mutate(human_rt, term = glue("rt-{term}")),
 ) %>% select(term, estimate) %>% pivot_wider(names_from=term, values_from=estimate)
 
+"""
+
+# %% --------
+
+R"""
 model2 = bind_rows(
     mutate(model_choice, term = glue("choice-{term}")),
     mutate(model_rt, term = glue("rt-{term}"))
 ) %>%
-    select(model, accuracy, rt50, base_precision, prior_mean, term, estimate) %>%
-    pivot_wider(names_from=term, values_from=estimate) %>%
-    mutate(prior_mean = prior_mean / $µ)
-
-
+    select(model, confidence_slope, cost, accuracy, rt50, prior_mean, term, estimate) %>%
+    pivot_wider(names_from=term, values_from=estimate)
 """
 
 # %% --------
 
 R"""
 model2 %>%
+    filter(accuracy > .55) |> 
     ggplot(aes(`choice-ConfDif`, `choice-ConfDif:savV`)) +
     geom_point(mapping=aes(color=model), size=.3) +
     bullseye(human2) +
     theme_classic() +
+    expand_limits(x=0, y=0) +
     model_pal + no_legend
     # +
     # scale_colour_manual(values=c(
@@ -133,49 +142,16 @@ model2 %>%
 fig("confidence_interaction", w=2.5, pdf=T)
 """
 
-µ, σ = empirical_prior(data2)
+# %% --------
 
-R"""
-D = model_choice %>%
-    # filter(model != "biased_mean") %>%
-    group_by(model) %>%
-    select(model, base_precision, prior_mean, term, estimate) %>%
-    pivot_wider(names_from=term, values_from=estimate)
-
-filter(model2, model != "nometa") %>%
-    ggplot(aes(`choice-ConfDif`, `choice-ConfDif:savV`)) +
-    geom_point(mapping=aes(color=prior_mean), size=.3) +
-    geom_point(data=filter(model2, model == "nometa"), size=.3, color=YELLOW) +
-    bullseye(human2) +
-    theme_classic() +
-    scale_color_gradient(
-      low = RED,
-      high = BLUE
-    ) + labs(color="Prior Mean") + no_legend
-
-
-fig("confidence_interaction_altr", w=2.5, pdf=T)
-"""
 
 R"""
 model2 %>%
     filter(model %in% c("main", "nometa")) %>%
-    ggplot(aes(`choice-fstosnd`, `choice-fstosnd:totalConfidence`)) +
-    geom_point(mapping=aes(color=model), size=.3, alpha=1) +
-    bullseye(human2) +
-    # labs(x="Relative Value", y="Relative Value\nby Overall Confidence") +
-    theme_classic() +
-    model_pal + no_legend
-
-fig("confidence_consistency", w=2.5, pdf=T)
-"""
-
-R"""
-model2 %>%
-    filter(model %in% c("main", "nometa")) %>%
+    filter(accuracy > .55) %>%
     mutate(accurate = accuracy - human_accuracy > 0) %>%
     ggplot(aes(`rt-totalConfidence`, `choice-fstosnd:totalConfidence`)) +
-    geom_point(mapping=aes(color=model, alpha=accurate), size=.3) +
+    geom_point(mapping=aes(color=model), size=.3) +
     # geom_point(data=human_wide, size=4, shape="+", color="green") +
     bullseye(human2) +
     geom_vline(xintercept=0) +
@@ -196,7 +172,21 @@ model_rt %>%
     tibble %>%
     select(estimate, std_error, rt)
 """
+# %% --------
 
+
+R"""
+model2 %>%
+    filter(model %in% c("main", "nometa")) %>%
+    ggplot(aes(`choice-fstosnd`, `choice-fstosnd:totalConfidence`)) +
+    geom_point(mapping=aes(color=model), size=.3, alpha=1) +
+    bullseye(human2) +
+    # labs(x="Relative Value", y="Relative Value\nby Overall Confidence") +
+    theme_classic() +
+    model_pal + no_legend
+
+fig("confidence_consistency", w=2.5, pdf=T)
+"""
 
 
 # %% --------

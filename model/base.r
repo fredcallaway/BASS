@@ -1,25 +1,25 @@
 library(tidyverse)
-library(lme4)
-library(jtools)
-library(magrittr)
-library(purrr)
+# library(lme4)
+# library(jtools)
+# library(magrittr)
+# library(purrr)
 # library(rmdformats)
-library(patchwork)
+# library(patchwork)
 # library(jsonlite)
 # library(tidyjson)
-library(ggbeeswarm)
-library(stickylabeller)
+# library(ggbeeswarm)
+# library(stickylabeller)
 # library(ggeffects)
-library(rlang)
+# library(rlang)
 # library(knitr)
 # library(ggside)
-library(broom.mixed)
-library(lmerTest)
+# library(broom.mixed)
+# library(lmerTest)
 # library(optigrab)
-library(formula.tools)
-library(colorspace)
+# library(formula.tools)
+# library(colorspace)
 # library(tune)
-library(infer)
+# library(infer)
 # library(ggrastr)
 
 
@@ -105,8 +105,8 @@ discrete_sequential = function(...) {
 
 
 
-zissou_pal = scale_fill_discrete_divergingx(
-    palette="Zissou 1", aesthetics=c("color", "fill"), rev=T, guide=guide_legend(reverse=TRUE))
+# zissou_pal = scale_fill_discrete_divergingx(
+#     palette="Zissou 1", aesthetics=c("color", "fill"), rev=T, guide=guide_legend(reverse=TRUE))
 
 options(
     "summ-model.info" = FALSE,
@@ -121,7 +121,7 @@ options(
 )
 
 
-kable = knitr::kable
+# kable = knitr::kable
 glue = glue::glue
 
 # %% ==================== Miscellany ====================
@@ -259,13 +259,13 @@ print_regression = function(model) {
     ))
 }
 
-tidy = function(model, ...) {
-    d = broom.mixed::tidy(model, conf.int=T, ...)
-    if (typeof(model) == "list") {
-        d$df = model$df
-    }
-    d
-}
+# tidy = function(model, ...) {
+#     d = broom.mixed::tidy(model, conf.int=T, ...)
+#     if (typeof(model) == "list") {
+#         d$df = model$df
+#     }
+#     d
+# }
 
 # just like counts but proportions
 props = function(data, ...) {
@@ -581,7 +581,7 @@ fancy_name = function(lab) {
 
 fancy_name_compact = function(lab) {
     name = fancy_name(lab)
-    if (str_detect(name, " ") && str_length(name) > 10) {
+    if (str_detect(name, " ") && str_length(name) > 10 && !str_detect(name, "\n")) {
         name = str_replace_all(name, " ", "\n")
     }
     name

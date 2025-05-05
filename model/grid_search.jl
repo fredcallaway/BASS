@@ -12,17 +12,24 @@ function flexmap(f, args; progress=:default, parallel=false, cache="")
         end
         file = "$cache/$i"
         if isfile(file)
-            return deserialize(file)
-        else
-            res = f(args)
-            serialize(file, res)
-            return res
+            try
+                return deserialize(file)
+            catch
+                println("Error deserializing $file; removing it")
+                rm(file)
+            end
         end
+        # cache not available
+        res = f(args)
+        serialize(file, res)
+        return res
     end
     if progress
         progress_map(func, eachindex(args), args; mapfun)
     else
-        mapfun(func, eachindex(args), args)
+        result, t = @timed mapfun(func, eachindex(args), args)
+        println("flexmap completed in $t seconds")
+        return result
     end
 end
 
