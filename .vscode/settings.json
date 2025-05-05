@@ -1,4 +1,5 @@
-{
+{   
+    "terminal.integrated.defaultLocation": "editor",
     "files.exclude": {
         "model/tmp": true,
         "model/results": true,
