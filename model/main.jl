@@ -1,8 +1,7 @@
 include("base.jl")
 
-version = "may5-sumfit"
+version = "may6-sepfit"
 mkpath("results/$version")
-
 
 # %% ==================== Load data ====================
 
@@ -20,86 +19,32 @@ make_frame(data2) |> CSV.write("data/study2.csv")
 
 # %% ==================== Define model parameters ====================
 
-model_base = BDDM(
-    base_precision = 0.0,
-    confidence_slope = 0.014,
-    attention_factor = 0.0,
-    cost = 0.019,
-    # NOTE: prior_mean and prior_precision are "fit" to each study
-)
+summary_fits = CSV.read("results/summary_fits.csv", DataFrame)
 
-# %% ==================== Study 1 main ====================
+models = map(eachrow(summary_fits)) do row
+    model = BDDM(;
+        row.base_precision,
+        row.confidence_slope,
+        row.attention_factor,
+        row.cost,
+        row.prior_mean,
+        row.prior_precision,
+    )
+    (row.study, row.model) => model
+end |> Dict
 
-µ, σ = empirical_prior(data1)
-m1_main = mutate(model_base,
-    prior_mean = µ,
-    prior_precision = 1 / σ^2,
-)
-write_sim(m1_main, data1, version, "1-main")
+# %% ==================== Study 1 ====================
 
-# %% ==================== Study 1 flat prior ====================
+write_sim(models[1, "main"], data1, version, "1-main")
+write_sim(models[1, "flat_prior"], data1, version, "1-flatprior")
+write_sim(models[1, "zero_mean"], data1, version, "1-zeroprior")
 
-m1_flat = mutate(m1_main,
-    prior_precision = 1e-6
-)
-write_sim(m1_flat, data1, version, "1-flatprior")
+# %% ==================== Study 2 ====================
 
-# %% ==================== Study 1 zero prior ====================
-
-m1_zero = mutate(m1_main,
-    prior_mean = 0
-)
-write_sim(m1_zero, data1, version, "1-zeroprior")
-
-# %% ==================== Study 2 main ====================
-
-µ, σ = empirical_prior(data2)
-m2_main = mutate(model_base,
-    prior_mean = µ,
-    prior_precision = 1 / σ^2
-)
-write_sim(m2_main, data2, version, "2-main")
-
-# %% ==================== Study 2 no metacognition ====================
-
-m2_nometa = mutate(m2_main,
-    subjective_slope = 0,
-    subjective_offset = m2_main.confidence_slope * avg_conf
-)
-write_sim(m2_nometa, data2, version, "2-nometa")
-
-# %% ==================== Study 2 overconfidence ====================
+write_sim(models[2, "main"], data2, version, "2-main")
+write_sim(models[2, "nometa"], data2, version, "2-nometa")
 
 over_models = map(0:.005:.04) do subjective_offset
-    mutate(m2_main; subjective_offset)
+    mutate(models[2, "main"]; subjective_offset)
 end
-
 write_sim(over_models, data2, version, "2-overconf"; repeats=5)
-
-
-#= ... unused, left in for posterity ...
-
-# %% ==================== Study 1 biased prior ====================
-
-#m = deserialize("tmp/v7-2-best")
-m1_biased = mutate(m1_main,
-    prior_mean = empirical_prior(data1, α=0.7)[1]
-)
-write_sim(m1_biased, data1, version, "1-biased")
-
-# %% ==================== Study 2 biased prior ====================
-
-m2_biased = mutate(m2_main,
-    prior_mean = empirical_prior(data2, α=0.7)[1]
-)
-write_sim(m2_biased, data1, version, "2-biased")
-
-# %% ==================== Study 2 overconfidence-slope ====================
-
-slope_over_models = map(.6:.2:1.4) do subjective_slope
-    mutate(m2_main; subjective_slope)
-end
-
-df = write_sim(slope_over_models, data2, "2-overconfslope"; repeats=5)
-
-=#

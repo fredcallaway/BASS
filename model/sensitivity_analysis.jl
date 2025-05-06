@@ -31,14 +31,62 @@ function load_frame(model, analysis=:choice)
     df
 end
 
+# %% ===== load data ==========================================================
+
+
+s1_model_choice = mapreduce(load_frame, vcat, ["1-main", "1-zero_mean", "1-flat_prior"])
+reg1 = fit_regressions(DataFrame(make_frame(load_human_data(1))); study=1)
+s1_human_choice = DataFrame(reg1.choice)
+
+# %% --------
+
+reg2 = fit_regressions(DataFrame(make_frame(load_human_data(2))); study=2)
+s2_human_choice = DataFrame(reg2.choice)
+s2_human_rt = DataFrame(reg2.rt)
+
+model_choice, model_rt = map([:choice, :rt]) do analysis
+    println(analysis)
+    mapreduce(vcat, ["2-main", "2-zero_mean", "2-nometa"]) do name
+        df = load_frame(name, analysis)
+        if "subjective_offset" ∉ names(df)
+            df.subjective_slope .= NaN
+            df.subjective_offset .= NaN
+        end
+        df
+    end
+end
+
+# %% ===== fitting ============================================================
+
+m1 = DataFrames.select(s1_model_choice, :model, 1:6, :accuracy, :rt50)
+m1.study .= 1
+
+m2 = DataFrames.select(model_choice, :model, 1:6, :accuracy, :rt50)
+m2.study .= 2
+
+model = vcat(m1, m2)
+
+human = mapreduce(vcat, enumerate((reg1, reg2))) do (i, reg)
+    rt50 = reg.rt_quantiles[3]
+    accuracy = reg.accuracy
+    DataFrame(;study=i, h_rt50=rt50, h_accuracy=accuracy)
+end
+
+R"""
+$model |> 
+    left_join($human) |> 
+    mutate( rt_err = (rt50 - h_rt50)/5, accuracy_err = accuracy - h_accuracy ) |> 
+    mutate(loss = rt_err^2 + accuracy_err^2) |> 
+    group_by(model, study, across(2:7)) |> 
+    summarise(loss = mean(loss), rt_loss = mean(rt_err^2), accuracy_loss = mean(accuracy_err^2)) |> 
+    group_by(model, study) |> 
+    slice_min(loss, n=1) |> 
+    write_csv("results/summary_fits.csv")
+"""
+
 # %% ==================== study 1 ====================
 
-model1 = mapreduce(load_frame, vcat, ["1-main", "1-zero_mean", "1-flat_prior"])
-data1 = load_human_data(1)
-reg1 = fit_regressions(DataFrame(make_frame(data1)); study=1)
-human1 = DataFrame(reg1.choice)
-
-@rput model1 human1
+@rput s1_model_choice s1_human_choice
 
 R"""
 model_pal = scale_colour_manual(values=c(
@@ -55,11 +103,11 @@ bullseye = function(data) list(
     geom_point(data=data, size=.7, color="black")
 )
 
-human_wide1 = human1 %>%
+human_wide1 = s1_human_choice %>%
     select(term, estimate) %>%
     pivot_wider(names_from=term, values_from=estimate)
 
-model1 %>%
+s1_model_choice %>%
     filter(model != "biased_mean") %>%
     group_by(model) %>%
     select(model, confidence_slope, cost, accuracy, term, estimate) %>%
@@ -81,8 +129,8 @@ fig("duration_interaction", w=2.5, pdf=T)
 
 data2 = load_human_data(2)
 reg2 = fit_regressions(DataFrame(make_frame(data2)); study=2)
-human_choice = DataFrame(reg2.choice)
-human_rt = DataFrame(reg2.rt)
+s2_human_choice = DataFrame(reg2.choice)
+s2_human_rt = DataFrame(reg2.rt)
 
 model_choice, model_rt = map([:choice, :rt]) do analysis
     println(analysis)
@@ -96,15 +144,15 @@ model_choice, model_rt = map([:choice, :rt]) do analysis
     end
 end
 
-@rput model_choice model_rt human_choice human_rt
+@rput model_choice model_rt s2_human_choice s2_human_rt
 human_accuracy = reg2.accuracy
 @rput human_accuracy human_rt50
 
-human_rt
+s2_human_rt
 R"""
 human2 = bind_rows(
-    mutate(human_choice, term = glue("choice-{term}")),
-    mutate(human_rt, term = glue("rt-{term}")),
+    mutate(s2_human_choice, term = glue("choice-{term}")),
+    mutate(s2_human_rt, term = glue("rt-{term}")),
 ) %>% select(term, estimate) %>% pivot_wider(names_from=term, values_from=estimate)
 
 """
@@ -269,7 +317,7 @@ model_rt %>%
     pivot_longer(c(base_precision, confidence_slope, attention_factor, cost), names_to="parameter", values_to="param") %>%
     ggplot(aes(param, estimate, color=model)) +
     geom_hline(mapping=aes(yintercept=estimate),
-        data=filter(human_rt, term == "totalConfidence")
+        data=filter(s2_human_rt, term == "totalConfidence")
     ) +
     facet_grid(term~parameter, scales="free") +
     geom_point(size=.1, alpha=.1) +
@@ -323,7 +371,7 @@ model_choice %>%
     pivot_longer(c(base_precision, confidence_slope, attention_factor, cost), names_to="parameter", values_to="param") %>%
     filter(term == "ConfDif:savV") %>%
     ggplot(aes(param, estimate, color=model)) +
-    geom_hline(mapping=aes(yintercept=estimate), data=filter(human_choice, term == "ConfDif:savV")) +
+    geom_hline(mapping=aes(yintercept=estimate), data=filter(s2_human_choice, term == "ConfDif:savV")) +
     facet_wrap(~parameter, scales="free", nrow=1) +
     geom_point(size=.1, alpha=.1)
     # gam_fit()
