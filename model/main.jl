@@ -1,6 +1,6 @@
 include("base.jl")
 
-version = "mar25"
+version = "may5-sumfit"
 mkpath("results/$version")
 
 
@@ -22,9 +22,9 @@ make_frame(data2) |> CSV.write("data/study2.csv")
 
 model_base = BDDM(
     base_precision = 0.0,
-    confidence_slope = 0.01,
+    confidence_slope = 0.014,
     attention_factor = 0.0,
-    cost = 0.05,
+    cost = 0.019,
     # NOTE: prior_mean and prior_precision are "fit" to each study
 )
 
