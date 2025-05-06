@@ -4,6 +4,7 @@ using Statistics
 using StatsBase
 using Distributions
 using SplitApplyCombine
+using ProgressMeter: progress_map
 flatten = SplitApplyCombine.flatten
 
 macro infiltry(ex)
@@ -154,3 +155,36 @@ function grid(; kws...)
     X
 end
 
+
+function flexmap(f, args; progress=:default, parallel=false, cache="")
+    if progress == :default
+        progress = parallel && isa(stderr, Base.TTY)
+    end
+    mapfun = parallel ? pmap : map
+    mkpath(cache)
+    func = (i, args) -> begin
+        if cache == ""
+            return f(args)
+        end
+        file = "$cache/$i"
+        if isfile(file)
+            try
+                return deserialize(file)
+            catch
+                println("Error deserializing $file; removing it")
+                rm(file)
+            end
+        end
+        # cache not available
+        res = f(args)
+        serialize(file, res)
+        return res
+    end
+    if progress
+        progress_map(func, eachindex(args), args; mapfun)
+    else
+        result, t = @timed mapfun(func, eachindex(args), args)
+        println("flexmap completed in $t seconds")
+        return result
+    end
+end
