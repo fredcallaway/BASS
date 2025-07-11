@@ -1,7 +1,6 @@
 include("base.jl")
 
-version = "may7-sepfit"
-mkpath("results/$version")
+outdir = results_path("simulations"; create=true)
 
 # %% ==================== Load data ====================
 
@@ -19,7 +18,7 @@ make_frame(data2) |> CSV.write("data/study2.csv")
 
 # %% ==================== Define model parameters ====================
 
-summary_fits = CSV.read("results/summary_fits.csv", DataFrame)
+summary_fits = CSV.read(results_path("summary_fits.csv"), DataFrame)
 
 models = map(eachrow(summary_fits)) do row
     model = BDDM(;
@@ -38,16 +37,16 @@ end |> Dict
 
 # %% ==================== Study 1 ====================
 
-write_sim(models[1, "main"], data1, version, "1-main")
-write_sim(models[1, "flat_prior"], data1, version, "1-flatprior")
-write_sim(models[1, "zero_mean"], data1, version, "1-zeroprior")
+make_sim(models[1, "main"], data1) |> CSV.write("$outdir/1-main.csv")
+make_sim(models[1, "flat_prior"], data1) |> CSV.write("$outdir/1-flatprior.csv")
+make_sim(models[1, "zero_mean"], data1) |> CSV.write("$outdir/1-zeroprior.csv")
 
 # %% ==================== Study 2 ====================
 
-write_sim(models[2, "main"], data2, version, "2-main")
-write_sim(models[2, "nometa"], data2, version, "2-nometa")
+make_sim(models[2, "main"], data2) |> CSV.write("$outdir/2-main.csv")
+make_sim(models[2, "nometa"], data2) |> CSV.write("$outdir/2-nometa.csv")
 
 over_models = map(0:.005:.04) do subjective_offset
     mutate(models[2, "main"]; subjective_offset)
 end
-write_sim(over_models, data2, version, "2-overconf"; repeats=5)
+make_sim(over_models, data2; repeats=5) |> CSV.write("$outdir/2-overconf.csv")

@@ -1,4 +1,6 @@
 using Distributed
+using ProgressMeter
+using Sobol
 
 # println("Building RCall")
 # using Pkg
@@ -9,20 +11,17 @@ using Distributed
     include("regressions.jl")
 end
 
-version = "2025-05-06"
+jls_dir = results_path("summary_stats/jls"; create=true)
+json_dir = results_path("summary_stats/json"; create=true)
 
-mkpath("tmp/sensitivity/$version")
-mkpath("results/sensitivity/json/$version")
 
-using ProgressMeter
-using Sobol
 function sobol(n::Int, box::Box)
     seq = SobolSeq(length(box))
     skip(seq, n)
     [box(Sobol.next!(seq)) for i in 1:n]
 end
 
-function run_sensitivity(name, data, box)
+function write_stats(name, data, box)
     study = parse(Int, name[1])
     results = @showprogress name pmap(grid(30, box)) do prm
         if get(prm, :subjective_slope, -1.) == 0.
@@ -34,8 +33,8 @@ function run_sensitivity(name, data, box)
 
         (;prm, fit_regressions(df; study)...)
     end
-    serialize("tmp/sensitivity/$version/$name", results)
-    write("results/sensitivity/json/$version/$name.json", json(results))
+    serialize("$jls_dir/$name", results)
+    write("$json_dir/$name.json", json(results))
 end
 
 
@@ -77,14 +76,14 @@ end
 
 # %% ==================== jobs ====================
 
-function run_selected_sensitivity(job_ids)
+function sbatch_job(job_ids)
     jobs = Dict(
-        1 => () -> run_sensitivity("2-main", data2, box2),
-        2 => () -> run_sensitivity("2-nometa", data2, update(box2, subjective_slope = 0.)),
-        3 => () -> run_sensitivity("2-zero_mean", data2, update(box2, prior_mean = 0.)),
-        4 => () -> run_sensitivity("1-main", data1, box1),
-        5 => () -> run_sensitivity("1-zero_mean", data1, update(box1, prior_mean = 0.)),
-        6 => () -> run_sensitivity("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
+        1 => () -> write_stats("2-main", data2, box2),
+        2 => () -> write_stats("2-nometa", data2, update(box2, subjective_slope = 0.)),
+        3 => () -> write_stats("2-zero_mean", data2, update(box2, prior_mean = 0.)),
+        4 => () -> write_stats("1-main", data1, box1),
+        5 => () -> write_stats("1-zero_mean", data1, update(box1, prior_mean = 0.)),
+        6 => () -> write_stats("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
     )
 
     if isempty(job_ids)
@@ -99,4 +98,4 @@ function run_selected_sensitivity(job_ids)
 end
 
 # Call the function with a specific job number or without arguments to run all
-run_selected_sensitivity(parse.(Int, ARGS))
+sbatch_job(parse.(Int, ARGS))

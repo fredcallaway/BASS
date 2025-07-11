@@ -8,7 +8,12 @@ using CSV
 
 # %% --------
 
-
+RESULTS_DIR = "results/2025-05-06"
+function results_path(name; create=false)
+    p = "$RESULTS_DIR/$name"
+    create && mkpath(p)
+    p
+end
 
 function empirical_prior(data; α=1)
     µ, σ = juxt(mean, std)(flatten(data.value))
@@ -57,13 +62,4 @@ function make_sim(models::Vector{BDDM}, data; kws...)
             subjective_slope = fill(model.subjective_slope, length(df))
         )
     end
-end
-
-function write_sim(model, data, version, name; normalize_value=false, repeats=30)
-    mkpath("results/simulations/$version")
-    df = make_sim(model, data; normalize_value, repeats)
-    fn = "results/simulations/$version/$name.csv"
-    df |> CSV.write(fn)
-    println("wrote $fn")
-    df
 end

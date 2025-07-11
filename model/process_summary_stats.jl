@@ -11,10 +11,8 @@ FIGS_PATH = "figs/sensitivity/"
 
 # %% --------
 
-version = "2025-05-06"
-
 function load_frame(model, analysis=:choice)
-    results = deserialize("results/sensitivity/jls/$version/$model")
+    results = deserialize(results_path("summary_stats/jls/$model"))
 
     df = flatmap(results) do x
         map(getfield(x, analysis)) do reg
