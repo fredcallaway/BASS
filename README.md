@@ -47,3 +47,7 @@ This produces results/2025-05-06/parameter_table.tex and results/2025-05-06/summ
 - dc.jl defines the directed-cognition stopping rule
 - data.jl loads and preprocesses the experimental data
 - regressions.jl defines the summary statistics used for fitting and sensitivity analysis
+
+## Previous versions
+
+The master branch is cleaned up and only contains the files necessary for producing the final results. See the pre-clean branch for the full project history.
