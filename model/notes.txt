@@ -1,9 +1,0 @@
-
-addm/grid/v7: first run with automatic parameter rescaling
-
-
-v7: tol = 0  dt = .025
-v8: tol = 0  dt = .1
-v9: tol = 1  dt = .1
-v10 tol = 1  dt = .025
-

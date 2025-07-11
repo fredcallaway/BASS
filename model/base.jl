@@ -60,9 +60,9 @@ function make_sim(models::Vector{BDDM}, data; kws...)
 end
 
 function write_sim(model, data, version, name; normalize_value=false, repeats=30)
-    mkpath("results/$version")
+    mkpath("results/simulations/$version")
     df = make_sim(model, data; normalize_value, repeats)
-    fn = "results/$version/$name.csv"
+    fn = "results/simulations/$version/$name.csv"
     df |> CSV.write(fn)
     println("wrote $fn")
     df

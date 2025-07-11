@@ -11,14 +11,10 @@ FIGS_PATH = "figs/sensitivity/"
 
 # %% --------
 
-# version = "2025-04-11"
 version = "2025-05-06"
-outdir = "results/sensitivity/processed/$version"
-indir = "tmp/sensitivity/$version"
-mkpath(outdir)
 
 function load_frame(model, analysis=:choice)
-    results = deserialize("$indir/$model")
+    results = deserialize("results/sensitivity/jls/$version/$model")
 
     df = flatmap(results) do x
         map(getfield(x, analysis)) do reg
@@ -29,6 +25,7 @@ function load_frame(model, analysis=:choice)
     df.model .= model[3:end]
     df
 end
+
 
 # %% ===== load data ==========================================================
 
@@ -82,13 +79,6 @@ end
 @rput model human
 
 # %% --------
-
-R"""
-model |> distinct(confidence_slope)
-"""
-
-# %% --------
-
 
 R"""
 fits <- model |> 

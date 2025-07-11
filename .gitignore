@@ -1,16 +1,6 @@
 .Rhistory
 .ipynb_checkpoints/
 Manifest.toml
-oldfigs/
-profile.ipynb
-fighist/
-results/
-plots.rmd
-scratch.jl
 tmp/
-.fighist/
 model/figs/
-analysis/plot_human.Rdata
 figures/
-
-model/pda.jl
