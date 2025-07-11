@@ -43,7 +43,7 @@ function get_confidence(d)
     end
 end
 
-function load_human_data(path="data/Study3.json")
+function load_human_data(path::String)
     raw_data = open(JSON.parse, path);
     map(raw_data) do d
         presentation_duration = parse_indpres(d["IndPresDur"])
@@ -61,7 +61,7 @@ function load_human_data(path="data/Study3.json")
         )
     end |> skipmissing |> collect |> Vector{NamedTuple} |> Table
 end
-load_human_data(number::Int) = load_human_data("data/Study$(number+1).json")
+load_human_data(number::Int) = load_human_data("data/Study$number.json")
 
 "Discretize presentation times while preventing rounding error from accumulating"
 function discretize_presentation_times(durations, dt)
