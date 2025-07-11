@@ -1,6 +1,6 @@
 include("base.jl")
 
-version = "may6-sepfit"
+version = "may7-sepfit"
 mkpath("results/$version")
 
 # %% ==================== Load data ====================
@@ -29,9 +29,12 @@ models = map(eachrow(summary_fits)) do row
         row.cost,
         row.prior_mean,
         row.prior_precision,
+        row.subjective_offset,
+        row.subjective_slope,
     )
     (row.study, row.model) => model
 end |> Dict
+
 
 # %% ==================== Study 1 ====================
 

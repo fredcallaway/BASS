@@ -1,8 +1,5 @@
 using Distributed
 
-# println("Building RCall")
-# using Pkg
-# Pkg.build("RCall")
 
 @everywhere begin
     include("base.jl")
@@ -11,18 +8,10 @@ end
 
 version = "2025-05-06"
 
-mkpath("tmp/sensitivity/$version")
-mkpath("results/sensitivity/json/$version")
+mkpath("tmp/summary_stats/$version")
+mkpath("results/summary_stats/json/$version")
 
-using ProgressMeter
-using Sobol
-function sobol(n::Int, box::Box)
-    seq = SobolSeq(length(box))
-    skip(seq, n)
-    [box(Sobol.next!(seq)) for i in 1:n]
-end
-
-function run_sensitivity(name, data, box)
+function run_summary(name, data, box)
     study = parse(Int, name[1])
     results = @showprogress name pmap(grid(30, box)) do prm
         if get(prm, :subjective_slope, -1.) == 0.
@@ -30,14 +19,17 @@ function run_sensitivity(name, data, box)
             prm = (;prm..., subjective_offset)
         end
         model = BDDM(;prm...)
-        df = DataFrame(make_sim(model, data; repeats=30))
+        sim = make_sim(model, data; repeats=30)
+        accuracy = map(sim) do s
+            s.val1 == s.val2 && return missing
+            (s.choice == 1) == (s.val1 > s.val2)
+        end |> skipmissing |> mean
 
-        (;prm, fit_regressions(df; study)...)
+        (;prm, rt50=median(df.rt), accuracy)
     end
-    serialize("tmp/sensitivity/$version/$name", results)
-    write("results/sensitivity/json/$version/$name.json", json(results))
+    serialize("tmp/summary_stats/$version/$name", results)
+    write("results/summary_stats/json/$version/$name.json", json(results))
 end
-
 
 # %% ==================== Load data ====================
 
@@ -59,6 +51,8 @@ box = Box(
     cost = (0.001, 0.1, :log),
 )
 
+# %% --------
+
 box1 = let 
     µ, σ = empirical_prior(data1)
     update(box; 
@@ -77,14 +71,16 @@ end
 
 # %% ==================== jobs ====================
 
-function run_selected_sensitivity(job_ids)
+function run_selected_summary(job_ids)
     jobs = Dict(
-        1 => () -> run_sensitivity("2-main", data2, box2),
-        2 => () -> run_sensitivity("2-nometa", data2, update(box2, subjective_slope = 0.)),
-        3 => () -> run_sensitivity("2-zero_mean", data2, update(box2, prior_mean = 0.)),
-        4 => () -> run_sensitivity("1-main", data1, box1),
-        5 => () -> run_sensitivity("1-zero_mean", data1, update(box1, prior_mean = 0.)),
-        6 => () -> run_sensitivity("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
+        1 => () -> run_summary("2-main", data2, box2),
+        2 => () -> run_summary("2-nometa", data2, update(box2, subjective_slope = 0.)),
+        # 3 => () -> run_summary("2-biased_mean", data2, update(box2, prior_mean = (0.1µ, 0.9µ))),
+        4 => () -> run_summary("2-zero_mean", data2, update(box2, prior_mean = 0.)),
+        5 => () -> run_summary("1-main", data1, box1),
+        # 6 => () -> run_summary("1-biased_mean", data1, update(box1, prior_mean=(.1µ, .9µ))),
+        7 => () -> run_summary("1-zero_mean", data1, update(box1, prior_mean = 0.)),
+        8 => () -> run_summary("1-flat_prior", data1, update(box1, prior_precision = 1e-8))
     )
 
     if isempty(job_ids)
@@ -99,4 +95,4 @@ function run_selected_sensitivity(job_ids)
 end
 
 # Call the function with a specific job number or without arguments to run all
-run_selected_sensitivity(parse.(Int, ARGS))
+run_selected_summary(parse.(Int, ARGS))

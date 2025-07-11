@@ -11,7 +11,8 @@ FIGS_PATH = "figs/sensitivity/"
 
 # %% --------
 
-version = "2025-04-11"
+# version = "2025-04-11"
+version = "2025-05-06"
 outdir = "results/sensitivity/processed/$version"
 indir = "tmp/sensitivity/$version"
 mkpath(outdir)
@@ -31,7 +32,17 @@ end
 
 # %% ===== load data ==========================================================
 
+function ensure_columns!(df)
+    if "subjective_slope" ∉ names(df)
+        df.subjective_slope .= 1
+        df.subjective_offset .= 0
+    end
+    df
+end
+
 s1_model_choice = mapreduce(load_frame, vcat, ["1-main", "1-zero_mean", "1-flat_prior"])
+ensure_columns!(s1_model_choice)
+
 reg1 = fit_regressions(DataFrame(make_frame(load_human_data(1))); study=1)
 s1_human_choice = DataFrame(reg1.choice)
 
@@ -42,24 +53,22 @@ s2_human_choice = DataFrame(reg2.choice)
 s2_human_rt = DataFrame(reg2.rt)
 
 s2_model_choice, s2_model_rt = map([:choice, :rt]) do analysis
-    println(analysis)
     mapreduce(vcat, ["2-main", "2-zero_mean", "2-nometa"]) do name
-        df = load_frame(name, analysis)
-        if "subjective_offset" ∉ names(df)
-            df.subjective_slope .= NaN
-            df.subjective_offset .= NaN
-        end
-        df
+        ensure_columns!(load_frame(name, analysis))
     end
 end
 
+
 # %% ===== fitting ============================================================
 
+param_names = [:base_precision, :attention_factor, :cost, :confidence_slope, 
+               :subjective_offset, :subjective_slope, :prior_mean, :prior_precision]
+
 model = let
-    m1 = DataFrames.select(s1_model_choice, :model, 1:6, :accuracy, :rt50)
+    m1 = DataFrames.select(s1_model_choice, :model, param_names..., :accuracy, :rt50)
     m1.study .= 1
 
-    m2 = DataFrames.select(s2_model_choice, :model, 1:6, :accuracy, :rt50)
+    m2 = DataFrames.select(s2_model_choice, :model, param_names..., :accuracy, :rt50)
     m2.study .= 2
     vcat(m1, m2)
 end
@@ -72,16 +81,44 @@ end
 
 @rput model human
 
+# %% --------
+
 R"""
-model |> 
+model |> distinct(confidence_slope)
+"""
+
+# %% --------
+
+
+R"""
+fits <- model |> 
     left_join(human) |> 
     mutate( rt_err = (rt50 - h_rt50)/5, accuracy_err = accuracy - h_accuracy ) |> 
     mutate(loss = rt_err^2 + accuracy_err^2) |> 
-    group_by(model, study, across(2:7)) |> 
+    group_by(across(-c(accuracy, rt50))) |> 
     summarise(loss = mean(loss), rt_loss = mean(rt_err^2), accuracy_loss = mean(accuracy_err^2)) |> 
     group_by(model, study) |> 
     slice_min(loss, n=1) |> 
+    arrange(study, model) |> 
+    select(-c(h_rt50, h_accuracy, rt_loss, accuracy_loss))
+
+fits |> 
     write_csv("results/summary_fits.csv")
+
+fits |> 
+    ungroup() |> 
+    summarise(
+        max(abs(rt_err*5000)),
+        max(abs(accuracy_err))
+    )
+"""
+
+R"""
+library(xtable)
+fits |> 
+    select(study, model, cost, confidence_slope) |> 
+    xtable(digits=3) |> 
+    print(file="results/parameter_table.tex")
 """
 
 # %% ==================== study 1 ====================
@@ -144,33 +181,6 @@ model2 <- bind_rows(
 
 R"""
 model2 %>%
-    ggplot(aes(`choice-ConfDif`, `choice-ConfDif:savV`)) +
-    geom_point(mapping=aes(color=model), size=.3) +
-    bullseye(human2) +
-    theme_classic() +
-    expand_limits(x=0, y=0) +
-    model_pal + no_legend
-
-fig("confidence_interaction", w=2.5, pdf=T)
-"""
-
-R"""
-model2 %>%
-    filter(model %in% c("main", "nometa")) %>%
-    filter(accuracy > .55) %>%
-    mutate(accurate = accuracy - human_accuracy > 0) %>%
-    ggplot(aes(`rt-totalConfidence`, `choice-fstosnd:totalConfidence`)) +
-    geom_point(mapping=aes(color=model), size=.3) +
-    bullseye(human2) +
-    geom_vline(xintercept=0) +
-    theme_classic() +
-    model_pal + no_legend
-
-fig("confidence_rt", w=2.5, pdf=T)
-"""
-
-R"""
-model2 %>%
     filter(model %in% c("main", "nometa")) %>%
     ggplot(aes(`choice-fstosnd`, `choice-fstosnd:totalConfidence`)) +
     geom_point(mapping=aes(color=model), size=.3, alpha=1) +
@@ -180,4 +190,33 @@ model2 %>%
     model_pal + no_legend
 
 fig("confidence_consistency", w=2.5, pdf=T)
+"""
+
+
+R"""
+model2 %>%
+    filter(model %in% c("main", "nometa")) %>%
+    ggplot(aes(`accuracy`, `rt-totalConfidence`, )) +
+    geom_point(mapping=aes(color=model), size=.3) +
+    bullseye(human2) +
+    geom_hline(yintercept=0) +
+    theme_classic() +
+    expand_limits(x=c(0.5)) +
+    model_pal + no_legend
+
+fig("confidence_rt", w=2.5, pdf=T)
+"""
+
+
+
+R"""
+model2 %>%
+    ggplot(aes(`choice-ConfDif`, `choice-ConfDif:savV`)) +
+    geom_point(mapping=aes(color=model), size=.3) +
+    bullseye(human2) +
+    theme_classic() +
+    expand_limits(x=0, y=0) +
+    model_pal + no_legend
+
+fig("confidence_interaction", w=2.5, pdf=T)
 """
