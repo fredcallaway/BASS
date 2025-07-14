@@ -26,7 +26,7 @@ library(buildmer)
 # get to the right place:
 fileLoc <- dirname(rstudioapi::getSourceEditorContext()$path)
 setwd(fileLoc) # go to script location first
-setwd("../..") 
+#setwd("../..") 
 
 basepath <- getwd()
 
@@ -41,41 +41,41 @@ didLmerConverge = function(lmerModel){
 }
 
 
-cursimPath = 'dec1'
+cursimPath = '/model/results/2025-05-06/simulations/'
 
 ### load data ###
 # choice data
-input_file = paste0(basepath, '/Data/Export/allSubDataTablePilot.xls')
+input_file = paste0(basepath, '/data/allSubDataTablePilot.xls')
 a1 = read.xls(input_file)
 # Rating data
-input_file =paste0(basepath, '/Data/Export/allSubRateDataTablePilot.xls')
+input_file =paste0(basepath, '/data/allSubRateDataTablePilot.xls')
 aR = read.xls(input_file)
 aR <- aR[!is.na(aR$RateRT1),]
 
 ## load simulation data
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/1-main.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/1-main.csv') #qualitative_sim_v3
 aSIMb <-   read.csv(input_file)
 aSIMb <- aSIMb[aSIMb$rt <5,]
 
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/1-flatprior.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/1-flatprior.csv') #qualitative_sim_v3
 aSIMbfp <-   read.csv(input_file)
 aSIMbfp <- aSIMbfp[aSIMbfp$rt <5,]
 
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/1-zeroprior.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/1-zeroprior.csv') #qualitative_sim_v3
 aSIMbzp <-   read.csv(input_file)
 aSIMbzp <- aSIMbzp[aSIMbzp$rt <5,]
 
 # Study 2
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/2-main.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/2-main.csv') #qualitative_sim_v3
 aSIMc <-   read.csv(input_file)
 aSIMc <- aSIMc[aSIMc$rt <5,]
 
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/2-nometa.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/2-nometa.csv') #qualitative_sim_v3
 aSIMcac <-   read.csv(input_file)
 aSIMcac <- aSIMcac[aSIMcac$rt <5,]
 
 
-input_file =paste0(basepath, '/simulations/' , cursimPath, '/2-overconf.csv') #qualitative_sim_v3
+input_file =paste0(basepath, cursimPath, '/2-overconf.csv') #qualitative_sim_v3
 aSIMcoc <-   read.csv(input_file)
 aSIMcoc <- aSIMcoc[aSIMcoc$rt <5,]
 
@@ -118,9 +118,9 @@ for (i in levels(a1$SubNum)){
   print(tmpmeanSubV)
   a1$subavV[a1$SubNum==i] <- a1$ASV[a1$SubNum==i] - tmpmeanSubV
 }
-  
-  
-  
+
+
+
 ### compute same vars for simulated data
 # main model
 aSIMb$SubNum <- factor(aSIMb$subject)
@@ -134,6 +134,15 @@ aSIMb$ssndItemVal <- scale(aSIMb$val2, scale=FALSE, center=TRUE)
 aSIMb$fstosnd <- (aSIMb$val1 -aSIMb$val2)/10
 aSIMb$spdfirst<- (aSIMb$pt1/(aSIMb$pt1+aSIMb$pt2)) - 0.5 #scale(a1b$pdfirst, scale=FALSE, center=TRUE)
 
+aSIMb$ASV <- (aSIMb$val1+aSIMb$val2)/2
+aSIMb$isLongFirst <- aSIMb$initpresdur1>aSIMb$initpresdur2
+
+pfirstlongSIMb <- ggplot(data=aSIMb[!is.na(aSIMb$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=aSIMb, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
+
+
 # flat prior model
 aSIMbfp$SubNum <- factor(aSIMbfp$subject)
 aSIMbfp$isfirstIchosen <- as.numeric(aSIMbfp$choice ==1)
@@ -145,6 +154,15 @@ aSIMbfp$sfstItemV <- scale(aSIMbfp$val1, scale=FALSE, center=TRUE)
 aSIMbfp$ssndItemVal <- scale(aSIMbfp$val2, scale=FALSE, center=TRUE)
 aSIMbfp$fstosnd <- (aSIMbfp$val1 -aSIMbfp$val2)/10
 aSIMbfp$spdfirst<- (aSIMbfp$pt1/(aSIMbfp$pt1+aSIMbfp$pt2)) - 0.5 #scale(a1b$pdfirst, scale=FALSE, center=TRUE)
+
+
+aSIMbfp$ASV <- (aSIMbfp$val1+aSIMbfp$val2)/2
+aSIMbfp$isLongFirst <- aSIMbfp$initpresdur1>aSIMbfp$initpresdur2
+
+pfirstlongSIMbfp <- ggplot(data=aSIMbfp[!is.na(aSIMbfp$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=aSIMbfp, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
 
 # zero prior model
 aSIMbzp$SubNum <- factor(aSIMbzp$subject)
@@ -159,8 +177,31 @@ aSIMbzp$fstosnd <- (aSIMbzp$val1 -aSIMbzp$val2)/10
 aSIMbzp$spdfirst<- (aSIMbzp$pt1/(aSIMbzp$pt1+aSIMbzp$pt2)) - 0.5 #scale(a1b$pdfirst, scale=FALSE, center=TRUE)
 
 
+aSIMbzp$ASV <- (aSIMbzp$val1+aSIMbzp$val2)/2
+aSIMbzp$isLongFirst <- aSIMbzp$initpresdur1> aSIMbzp$initpresdur2
+
+pfirstlongSIMbzp <- ggplot(data=aSIMbzp[!is.na(aSIMbzp$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=aSIMbzp, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
 
 ##### main choice analyses ####
+
+
+# df |> 
+#   drop_na(initpresdur2) |> 
+#   mutate(longfirst = initpresdur1 > .311) |> 
+#   ggplot(aes(val1 + val2, 1 * (choice == 1), color=factor(longfirst))) +
+#   stat_summary_bin(fun.data=mean_cl_boot, bins=5) +
+#   stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)
+# ylab("choose first")
+
+# generate raw data plot for attention effect on choice
+## true attention manipulation variable
+a1$isLongFirst <- a1$initpresdur1>a1$initpresdur2
+
+
+#No fancy regressions or anything, and the color is a true independent variable—I feel like this is better
 
 # subsetting data into separate versions
 a1b <- a1[a1$Version==503,]
@@ -199,6 +240,23 @@ a1c$cfstConfidence <- scale(a1c$fstConfidence, scale=FALSE, center = TRUE)
 a1c$csndConfidence <- scale(a1c$sndConfidence, scale=FALSE, center = TRUE)
 a1c$ConfDif <- a1c$fstConfidence-a1c$sndConfidence# don't center
 
+
+
+
+
+## plot this for study 1 and 2
+
+pfirstlongS1 <- ggplot(data=a1b[!is.na(a1b$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=a1, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
+multiplot(pfirstlongSIMb, pfirstlongS1, cols = 2)
+
+pfirstlongS2 <- ggplot(data=a1c[!is.na(a1c$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=a1, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
+
 ### compute same vars for simulated data
 
 # main model
@@ -206,6 +264,7 @@ aSIMc$SubNum <- factor(aSIMc$subject)
 aSIMc$isfirstIchosen <- as.numeric(aSIMc$choice ==1)
 aSIMc$sVD <- scale(abs(aSIMc$val1 -aSIMc$val2)/10, scale=FALSE, center=TRUE)
 aSIMc$savV <- scale((aSIMc$val1+aSIMc$val2)/20, scale=FALSE, center=TRUE)
+
 aSIMc$RT <- (aSIMc$pt1+aSIMc$pt2)
 aSIMc$cRT <- scale(aSIMc$RT, scale=FALSE, center=TRUE)
 aSIMc$sfstItemV <- scale(aSIMc$val1, scale=FALSE, center=TRUE)
@@ -224,6 +283,16 @@ aSIMc$totalConfidence <- (aSIMc$sumConfidence)/2 - aSIMc$ConfBias
 aSIMc$cfstConfidence <- scale(aSIMc$conf1, scale=FALSE, center = TRUE)
 aSIMc$csndConfidence <- scale(aSIMc$conf2, scale=FALSE, center = TRUE)
 aSIMc$ConfDif <- aSIMc$conf1-aSIMc$conf2# don't center
+
+aSIMc$ASV <- (aSIMc$val1+aSIMc$val2)/2
+aSIMc$isLongFirst <- aSIMc$initpresdur1>aSIMc$initpresdur2
+
+pfirstlongSIMc <- ggplot(data=aSIMc[!is.na(aSIMc$isLongFirst),], aes(x=ASV, y=isfirstIchosen,group = isLongFirst, color = isLongFirst, fill=isLongFirst))+stat_smooth(method="glm", method.args = list(family="binomial"), alpha=0.2)+  stat_summary_bin(fun.data=mean_cl_boot, bins=5)+#geom_point(size = 5, position=position_dodge(.1))+#+ scale_fill_manual(name = "Reward level", values=c("#343085" ,"#F1E923"))+
+  theme_classic()+xlab("Overall Value") + ylab("P(First Chosen)") +scale_colour_manual(name="first long", values=darkcolssub[c(1,5)])+scale_fill_manual(name="first long", values=darkcolssub[c(1,5)])+
+  geom_line(data=a1, aes(x=ASV, y=0.5), size=0.2,linetype=2, color="black")+ geom_vline(xintercept=5, linetype=2, size=0.2)  + ylab("P(first chosen)") + theme(legend.position=c(0.25, 0.2))+
+  coord_cartesian(ylim = c(0, 1))
+
+
 
 # average confidence /AC model
 aSIMcac$SubNum <- factor(aSIMcac$subject)
@@ -388,7 +457,7 @@ contmain$sVD <- contmain$sVD - min(contmain$sVD, na.rm=TRUE)
 
 contmainC <- contmain
 contmainC$ValType <- rep("VD", length(contmain$fit))
-contmainC <- rename(contmainC, c("sVD"="Value"))
+contmainC <- rename(contmainC, c("Value"="sVD"))
 
 eff_df <- effect("savV", RTmod0,  xlevels=list(savV=seq(min(a1b$savV, na.rm=TRUE), max(a1b$savV, na.rm=TRUE), 0.1)))
 contmain <- as.data.frame(eff_df)
@@ -396,7 +465,7 @@ contmain$savV <- contmain$savV - min(contmain$savV, na.rm=TRUE)
 
 contmainuC <- contmain
 contmainuC$ValType <- rep("OV", length(contmain$fit))
-contmainuC <- rename(contmainuC, c("savV"="Value"))
+contmainuC <- rename(contmainuC, c("Value"="savV"))
 
 contmainall <- rbind(contmainC, contmainuC)
 
@@ -439,7 +508,7 @@ aRc <- aR[aR$Version==504 & aR$isInChoiceSet ==1,]
 
 aRc$cConfidence <- scale(aRc$Confidence, scale=FALSE, center = TRUE)
 print (summary(modVConf <- lmer(Confidence~ Rating1+ I(Rating1*Rating1) +(Rating1|SubNum), aRc, 
-                             REML=FALSE)))
+                                REML=FALSE)))
 
 sv1_max <- svd(getME(modVConf, "Tlist")[[1]]) 
 sv1_max$d
@@ -454,7 +523,7 @@ eff_df <- Effect(c("Rating1"), modVConf, xlevels=list(Rating1 =seq(min(aRc$Ratin
 IA <- as.data.frame(eff_df)
 pConfV<- ggplot(data=IA, aes(x=Rating1, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=Rating1, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+
   geom_vline(xintercept=5, linetype=2, size=0.2) + xlab("Item Rating") + ylab("Confidence Rating") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.25, 0.2))#+
-  #coord_cartesian(ylim = c(0, 1)) 
+#coord_cartesian(ylim = c(0, 1)) 
 pdf(paste0(basepath, "/Figures/ConfidencebValue.pdf"), width = 4, height = 4)
 pConfV
 dev.off()
@@ -463,8 +532,8 @@ dev.off()
 aRc$RateVar <- abs(aRc$RateConsistency)
 
 subRate <- data.frame(Rating1 = c(mean(aRc$Rating1, na.rm=TRUE),sd(aRc$Rating1, na.rm=TRUE)),
-                 Rating2 = c(mean(aRc$Rating2, na.rm=TRUE),sd(aRc$Rating2, na.rm=TRUE)),
-                 RateVar = c(mean(aRc$RateVar, na.rm=TRUE), sd(aRc$RateVar, na.rm=TRUE) ))
+                      Rating2 = c(mean(aRc$Rating2, na.rm=TRUE),sd(aRc$Rating2, na.rm=TRUE)),
+                      RateVar = c(mean(aRc$RateVar, na.rm=TRUE), sd(aRc$RateVar, na.rm=TRUE) ))
 row.names(subRate) <- c("Mean", "SD")
 colnames(subRate) <- c("Rating 1", "Rating 2", "Rating Var")
 library(dplyr)
@@ -475,7 +544,7 @@ subRate%>%
 cor.test(aRc$Rating1, aRc$Rating2)
 
 print (summary(modConfCons <- lmer(RateVar~ cConfidence+Rating1+ I(Rating1*Rating1)  +(cConfidence+Rating1|SubNum), aRc, 
-                                REML=FALSE)))
+                                   REML=FALSE)))
 
 didLmerConverge(modConfCons)
 
@@ -485,7 +554,7 @@ eff_df <- Effect(c("cConfidence"), modConfCons, xlevels=list(Rating1 =seq(min(aR
 
 IA <- as.data.frame(eff_df)
 pConfCons<- ggplot(data=IA, aes(x=cConfidence, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=cConfidence, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+
-   xlab("Value Confidence (Rating 1)") + ylab("Rating Deviation") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.25, 0.2))#+
+  xlab("Value Confidence (Rating 1)") + ylab("Rating Deviation") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.25, 0.2))#+
 
 
 ## original model
@@ -519,7 +588,7 @@ IA <- as.data.frame(eff_df)
 
 # plot S2 data on top of S1 data with dashed lines
 pRV <- pRVS1 + geom_line(data=IA, aes(x=fstosnd, y=fit  ), linetype = 2, size = 0.5) + geom_ribbon(data=IA, aes(x=fstosnd, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)
-  
+
 ## There is no main effect of presentation duration on choice
 eff_df <- Effect(c("spdfirst"), Choicemod0S2 )
 
@@ -557,13 +626,13 @@ pConfDifS2<- ggplot(data=IA, aes(x=savV, y=fit , color= ConfDif )) + geom_line()
 a1c$isGreaterZero <- as.factor(a1c$savV>0)
 contrasts(a1c$isGreaterZero) <- contr.sdif(2)
 print (summary(Choicemod0S2IA <- glmer(isfirstIchosen ~ fstosnd + cRT + totalConfidence +  fstosnd:totalConfidence +  isGreaterZero*( ConfDif + spdfirst) +      (1 + fstosnd | SubNum), data = a1c[!a1c$numcycles==1,], #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
-                                     family = binomial))) 
+                                       family = binomial))) 
 
 tab_model(Choicemod0S2IA, transform =NULL)
 
 # significant positive effects of relative confidence and relative fixation duration above the mean. Significant negative estimate for relative confidence below the mean. Non significant negative effect of fixation duration below.
 print (summary(Choicemod0S2IAn <- glmer(isfirstIchosen ~ fstosnd + cRT + totalConfidence +  fstosnd:totalConfidence +  isGreaterZero/( ConfDif + spdfirst) +      (1 + fstosnd | SubNum), data = a1c[!a1c$numcycles==1,], #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
-                                       family = binomial))) 
+                                        family = binomial))) 
 tab_model(Choicemod0S2IAn, transform =NULL)
 
 ## how about RT?
@@ -595,7 +664,7 @@ pVDRT <- ggplot(data=contmain, aes(x=sVD, y=fit)) + geom_line(color="#000000")+t
 
 contmainC <- contmain
 contmainC$ValType <- rep("VD", length(contmain$fit))
-contmainC <- rename(contmainC, c("sVD"="Value"))
+contmainC <- rename(contmainC, c("Value"="sVD"))
 
 eff_df <- effect("savV", RTmod0S2,  xlevels=list(savV=seq(min(a1c$savV, na.rm=TRUE), max(a1c$savV, na.rm=TRUE), 0.1)))
 contmain <- as.data.frame(eff_df)
@@ -603,7 +672,7 @@ contmain$savV <- contmain$savV - min(contmain$savV, na.rm=TRUE)
 
 contmainuC <- contmain
 contmainuC$ValType <- rep("OV", length(contmain$fit))
-contmainuC <- rename(contmainuC, c("savV"="Value"))
+contmainuC <- rename(contmainuC, c("Value"="savV"))
 
 contmainall <- rbind(contmainC, contmainuC)
 
@@ -639,7 +708,7 @@ plmodfstbtTCS2 <- ggplot(data=IA, aes(x=totalConfidence, y=fit)) + geom_line()+s
 #fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + savV + ConfDif:savV + spdfirst:savV +      (1 + fstosnd | SubNum)
 
 print (summary(Choicemod0wb <- glmer(isfirstIchosen ~ fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + cConfBias + savV + fstosnd:cConfBias + ConfDif:savV + spdfirst:savV +      (1 + fstosnd | SubNum)
-, data = a1c[!a1c$numcycles==1,], #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
+                                     , data = a1c[!a1c$numcycles==1,], #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
                                      family = binomial))) 
 
 sv1_max <- svd(getME(Choicemod0, "Tlist")[[1]]) 
@@ -688,7 +757,7 @@ round(sv1_max$d^2/sum(sv1_max$d^2)*100, 1)
 tab_model(Choicemod0res, transform=NULL)
 
 print (summary(Choicemod0res2 <- glmer(isfirstIchosen ~ 0+fstosnd +      (0 + fstosnd + spdfirst | SubNum), data = a1c[!a1c$numcycles==1,], 
-                                      family = binomial))) 
+                                       family = binomial))) 
 
 sv1_max <- svd(getME(Choicemod0res2, "Tlist")[[1]]) 
 sv1_max$d
@@ -856,7 +925,7 @@ pConfDifS2wr <- pConfDifS2+ geom_point(data=sum1, aes(x=OVpl, y=fit, color= Conf
 
 # choice
 a1c$ConfBiaspl  <- cut(a1c$ConfBias,
-                  quantile(a1c$ConfBias, seq(0, 1, 1/5), na.rm=TRUE), include.lowest=T)#,
+                       quantile(a1c$ConfBias, seq(0, 1, 1/5), na.rm=TRUE), include.lowest=T)#,
 
 a1c$RVpl2 <- ((round((a1c$RVpl*10)/5))*5)/10
 sum1 <-summarySE(a1c[! a1c$numcycles==1,], measurevar="isfirstIchosen", groupvars =c("ConfBiaspl", "RVpl2" ), na.rm=TRUE)
@@ -894,7 +963,7 @@ plmodfstbtCBwr <- plmodfstbtCB+ geom_point(data=sum1, aes(x=cConfBias, y=fit)) +
 
 
 print (summary(Choicemod0SIMb <- glm(isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV, data = aSIMb, 
-                                 family=binomial(link='logit') ))) 
+                                     family=binomial(link='logit') ))) 
 
 tab_model(Choicemod0SIMb, transform=NULL)
 
@@ -922,7 +991,7 @@ plmodfstOVSIM1 <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geom_
 ## RT
 
 print (summary(RTmod0SIM1 <- lm(log(RT*1000)~ sVD + savV , aSIMb, 
-                              REML=FALSE)))
+                                REML=FALSE)))
 
 tab_model(RTmod0SIM1)
 
@@ -930,7 +999,7 @@ tab_model(RTmod0SIM1)
 ########################### flat prior model  and zero prior model ################################
 
 print (summary(Choicemod0SIMbfp <- glm(isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV , data = aSIMbfp, 
-                                     family=binomial(link='logit') ))) 
+                                       family=binomial(link='logit') ))) 
 
 print (summary(Choicemod0SIMbzp <- glm(isfirstIchosen ~ fstosnd + spdfirst + cRT + savV + spdfirst:savV, data = aSIMbzp, 
                                        family=binomial(link='logit') ))) 
@@ -938,13 +1007,13 @@ tab_model(Choicemod0SIMbfp, Choicemod0SIMbzp, transform=NULL)
 
 
 ## There is no main effect of presentation duration on choice
-eff_df <- Effect(c("spdfirst"), Choicemod0SIMbfp )
+eff_df <- Effect(c("spdfirst"), Choicemod0SIMbfp)
 
 IA <- as.data.frame(eff_df)
 pSPDSIM1fp<- ggplot(data=IA, aes(x=spdfirst, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=spdfirst, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+ ylim(0, 1)+
   scale_fill_manual(name="presentation\n duration\n first", values=cbPalette)+geom_line(data=IA, aes(x=spdfirst, y=0.5), size=0.2,linetype=2, color="black") + xlab("Relative Presentation Duration") + ylab("P(first chosen)") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.25, 0.2))
 
-eff_df <- Effect(c("spdfirst"), Choicemod0SIMbzp )
+eff_df <- Effect(c("spdfirst"), Choicemod0SIMbzp,xlevels=list(spdfirst=seq(min(aSIMbzp$spdfirst), max(aSIMbzp$spdfirst), 0.1))  )
 
 IA <- as.data.frame(eff_df)
 pSPDSIM1zp<- ggplot(data=IA, aes(x=spdfirst, y=fit  )) + geom_line()+scale_colour_manual(name="presentation\n duration\n first", values=cbPalette) +theme_bw(12)+ geom_ribbon(data=IA, aes(x=spdfirst, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+ ylim(0, 1)+
@@ -971,13 +1040,18 @@ plmodfstOVSIM1zp <- ggplot(data=IA, aes(x=savV, y=fit , color= spdfirst )) + geo
   coord_cartesian(ylim = c(0, 1)) 
 
 ################### Plot Figure 3 ##########################
-pdf(paste0(basepath, "/Figures/Combi/Fig3.pdf"), width = 20, height = 8)#, units = 'cm', res = 200, compression = 'lzw'
+pdf(paste0(basepath, "/Figures/Combi/Fig3old.pdf"), width = 20, height = 8)#, units = 'cm', res = 200, compression = 'lzw'
 multiplot(plmodfstOVSIM1, pSPDSIM1,plmodfstOVS1wr,pSPDS1wd,plmodfstOVS2wr, pSPDS2wd, plmodfstOVSIM1zp, pSPDSIM1zp,plmodfstOVSIM1fp,  pSPDSIM1fp, cols=5)
+dev.off()
+
+
+pdf(paste0(basepath, "/Figures/Combi/Fig3.pdf"), width = 20, height = 8)#, units = 'cm', res = 200, compression = 'lzw'
+multiplot(pfirstlongSIMb, pSPDSIM1,pfirstlongS1,pSPDS1wd,pfirstlongS2, pSPDS2wd, pfirstlongSIMbzp, pSPDSIM1zp,pfirstlongSIMbfp,  pSPDSIM1fp, cols=5)
 dev.off()
 
 ## RT
 print (summary(RTmod0SIM1fp <- lm(log(RT*1000)~ sVD + savV , aSIMbfp, 
-                                REML=FALSE)))
+                                  REML=FALSE)))
 print (summary(RTmod0SIM1zp <- lm(log(RT*1000)~ sVD + savV , aSIMbzp, 
                                   REML=FALSE)))
 tab_model(RTmod0SIM1fp, RTmod0SIM1zp)
@@ -987,7 +1061,7 @@ tab_model(RTmod0SIM1fp, RTmod0SIM1zp)
 
 # main
 print (summary(Choicemod0SIM2 <- glm(isfirstIchosen ~ fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + savV + ConfDif:savV + spdfirst:savV , data = aSIMc, #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
-                                   family=binomial(link='logit')))) 
+                                     family=binomial(link='logit')))) 
 
 tab_model(Choicemod0SIM2, transform =NULL)
 
@@ -1029,7 +1103,7 @@ plmodfstbtTCSIM2 <- ggplot(data=IA, aes(x=totalConfidence, y=fit)) + geom_line()
 
 
 print (summary(Choicemod0SIM2ac <- glm(isfirstIchosen ~ fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + savV + ConfDif:savV + spdfirst:savV , data = aSIMcac, #  & a1c$fstConfidence >0 & a1c$sndConfidence >0
-                                     family=binomial(link='logit')))) 
+                                       family=binomial(link='logit')))) 
 
 tab_model(Choicemod0SIM2, Choicemod0SIM2ac, transform =NULL)
 
@@ -1056,7 +1130,7 @@ pConfDifSIM2ac<- ggplot(data=IA, aes(x=savV, y=fit , color= ConfDif )) + geom_li
 ## how about RT?
 
 print (summary(RTmod0SIM2ac <- lm(log(RT*1000)~   sVD + savV + ConfDif + totalConfidence, aSIMcac,
-                                REML=FALSE)))
+                                  REML=FALSE)))
 
 tab_model(RTmod0SIM2ac)
 
@@ -1076,21 +1150,21 @@ dev.off()
 ####### Confidence bias
 
 print (summary(Choicemod0wbSIM <- glm(isfirstIchosen ~ fstosnd + cRT + ConfDif + spdfirst + totalConfidence +  fstosnd:totalConfidence + cConfBias + savV + fstosnd:cConfBias + ConfDif:savV + spdfirst:savV 
-                                     , data = aSIMcoc, 
-                                   family=binomial(link='logit')))) 
+                                      , data = aSIMcoc, 
+                                      family=binomial(link='logit')))) 
 
 #tab_model(Choicemod0wbSIM, transform =NULL)
 
 
 print (summary(RTmod0wbSIM <- lm(log(RT*1000)~  sVD + savV + ConfDif + totalConfidence +  +cConfBias  , data = aSIMcoc, 
-                                REML=FALSE)))
+                                 REML=FALSE)))
 
 
 eff_df <- Effect(c("cConfBias"), RTmod0wbSIM )
 
 IA <- as.data.frame(eff_df)
 plmodfstbtCBSIM<- ggplot(data=IA, aes(x=cConfBias, y=fit)) + geom_line()+theme_bw(12)+ geom_ribbon(data=IA, aes(x=cConfBias, max = fit + se, min = fit- se),alpha=0.1, inherit.aes = FALSE)+ ylim(6.5, 7.9)+
- xlab("Confidence Bias") + ylab("RT") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.75, 0.25),legend.background=element_blank())#+  coord_cartesian(ylim = c(0, 1)) 
+  xlab("Confidence Bias") + ylab("RT") + theme(panel.border = element_blank(), panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) + theme(legend.position=c(0.75, 0.25),legend.background=element_blank())#+  coord_cartesian(ylim = c(0, 1)) 
 
 eff_df <- Effect(c("fstosnd", "cConfBias"), Choicemod0wbSIM, xlevels=list(fstosnd =seq(min(aSIMcoc$fstosnd ), max(aSIMcoc$fstosnd), 0.1)) )
 
@@ -1128,17 +1202,17 @@ a1b$ssndItemVal <- scale(a1b$sndItemVal, scale=FALSE, center=TRUE)
 
 ## this is the  model we get from buildmer. That doesn't allow us to test the interaction of presentation duration with relative value, hence we run the one below 
 print (summary(Choicemod0ALL <- glmer(isfirstIchosen ~ (fstosnd + spdfirst + cRT + savV + spdfirst:savV)*Version +      (1 + fstosnd + spdfirst | SubNum), data = a1d[!a1d$numcycles==1,], 
-                                   family = binomial))) 
+                                      family = binomial))) 
 
 tab_model(Choicemod0ALL, transform=NULL)
 
 print (summary(Choicemod0ALLn <- glmer(isfirstIchosen ~ Version/(fstosnd + spdfirst + cRT + savV + spdfirst:savV) +      (1 + fstosnd + spdfirst | SubNum), data = a1d[!a1d$numcycles==1,], 
-                                      family = binomial))) 
+                                       family = binomial))) 
 
 tab_model(Choicemod0ALLn, transform=NULL)
 
 print (summary(RTmod0ALL <- lmer(log(RT*1000)~  (sVD + savV)*Version  +  (1 + sVD + savV | SubNum), a1d[!a1d$Choice==-1,], 
-                              REML=FALSE)))
+                                 REML=FALSE)))
 
 tab_model(RTmod0ALL)
 
